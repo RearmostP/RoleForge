@@ -7,7 +7,6 @@ use super::models::LoadedFile;
 
 pub(crate) fn load_file(path: impl AsRef<Path>) -> io::Result<LoadedFile> {
     let path = path.as_ref();
-    fs::metadata(path)?;
     let content = fs::read_to_string(path)?;
 
     Ok(LoadedFile {
