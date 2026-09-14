@@ -1,5 +1,5 @@
-// Input: UTF-8 source content and its file path.
-// Output: A data-only LoadedFile for the next pipeline stage.
+// Input: Source content, paths, and discovered Role data.
+// Output: Neutral LoadedFile and CleanRole pipeline models.
 
 use std::path::PathBuf;
 
@@ -7,4 +7,11 @@ use std::path::PathBuf;
 pub(crate) struct LoadedFile {
     pub(crate) content: String,
     pub(crate) path: PathBuf,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct CleanRole {
+    pub(crate) index: usize,
+    pub(crate) name: String,
+    pub(crate) body: String,
 }
