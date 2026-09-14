@@ -122,4 +122,56 @@ mod tests {
             assert_eq!(tokenize(&file), Err(expected));
         }
     }
+
+    #[test]
+    fn indented_declarations_before_first_role_are_content_errors() {
+        for indent in ["    ", "\t"] {
+            let file = LoadedFile {
+                content: format!("# heading\n{indent}@role Directory\n@role Valid\n"),
+                path: PathBuf::new(),
+            };
+            assert_eq!(
+                tokenize(&file),
+                Err(TokenizeError::ContentBeforeRole { line: 2 })
+            );
+        }
+    }
+
+    #[test]
+    fn indented_declarations_inside_role_remain_opaque_content() {
+        let body = "    @role Directory # body content\n\t@role Other\n";
+        let roles = run(&format!("@role First\n{body}@role Second\n"));
+        assert_eq!(roles.len(), 2);
+        assert_eq!(roles[0].body, body);
+        assert_eq!(roles[1].name, "Second");
+    }
+
+    #[test]
+    fn declaration_comments_are_removed_without_changing_body_hashes() {
+        for declaration in [
+            "@role Directory # comment\n",
+            "@role Directory      # comment\r\n",
+        ] {
+            let body = "value = 10 # inline\ncolor = #FF0000\n";
+            let roles = run(&format!("    # indented comment\n{declaration}{body}"));
+            assert_eq!(roles.len(), 1);
+            assert_eq!(roles[0].name, "Directory");
+            assert_eq!(roles[0].body, body);
+        }
+        assert_eq!(run("@role Directory # comment at EOF")[0].name, "Directory");
+    }
+
+    #[test]
+    fn missing_names_including_comment_only_declarations_are_errors() {
+        for declaration in ["@role", "@role\n", "@role \t\r\n", "@role # comment\n"] {
+            let file = LoadedFile {
+                content: format!("# heading\n{declaration}"),
+                path: PathBuf::new(),
+            };
+            assert_eq!(
+                tokenize(&file),
+                Err(TokenizeError::MissingRoleName { line: 2 })
+            );
+        }
+    }
 }

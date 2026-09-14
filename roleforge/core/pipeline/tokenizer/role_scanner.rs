@@ -16,12 +16,12 @@ pub(super) fn scan(source: &str) -> Result<Vec<RawRole<'_>>, TokenizeError> {
             continue;
         }
 
-        let declaration = trimmed
+        let declaration = line
             .strip_prefix("@role")
             .filter(|rest| rest.is_empty() || rest.starts_with(char::is_whitespace));
         if let Some(rest) = declaration {
-            // Naming validation is intentionally deferred; retain the whole name.
-            let name = rest.trim();
+            // Inline comments are Core syntax only on declaration lines.
+            let name = rest.split_once('#').map_or(rest, |(name, _)| name).trim();
             if name.is_empty() {
                 return Err(TokenizeError::MissingRoleName {
                     line: line_index + 1,
