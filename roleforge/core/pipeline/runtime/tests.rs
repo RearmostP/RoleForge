@@ -159,9 +159,9 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
         ]
     );
     let trace = String::from_utf8(output).unwrap();
-    assert!(trace.contains("Status: Unknown"));
-    assert!(trace.contains("Status: Conflict"));
-    assert_eq!(trace.matches("[CORE DEBUG]").count(), 4);
+    assert!(trace.contains("Role conflict: Shared"));
+    assert!(trace.contains("Handoff aborted."));
+    assert!(!trace.contains("[CORE DEBUG]"));
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn stored_registry_can_be_loaded_once_and_reused() {
         assert!(
             String::from_utf8(output)
                 .unwrap()
-                .contains("Status: Unknown")
+                .contains("Unknown Role: UnregisteredStage04Fixture")
         );
     }
 }

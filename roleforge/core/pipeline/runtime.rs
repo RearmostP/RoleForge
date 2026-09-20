@@ -28,7 +28,26 @@ pub(crate) fn run_file(
     let file = load_file(path).map_err(RuntimeError::Load)?;
     let roles = tokenize(&file).map_err(RuntimeError::Tokenize)?;
     let results = dispatch(roles, registry);
+
+    // Stage 06: inspect the COMPLETE result set before processing any resolved
+    // Role. Report all conflicts and abort the whole delivery phase, preserving
+    // the original results for the Python caller. Never choose a registry winner.
+    let mut has_conflict = false;
     for result in &results {
+        if matches!(result, DispatchResult::Conflict { .. }) {
+            has_conflict = true;
+            final_core_debug::inspect(result, output).map_err(RuntimeError::DebugOutput)?;
+        }
+    }
+    if has_conflict {
+        final_core_debug::handoff_aborted(output).map_err(RuntimeError::DebugOutput)?;
+        return Ok(results);
+    }
+
+    for result in &results {
+        // Unknown is reported and skipped; resolved data remains in source order.
+        // TODO: Deliver resolved CleanRole + entry once the receiving protocol is
+        // defined. Debug inspection is NOT physical handoff or Role execution.
         final_core_debug::inspect(result, output).map_err(RuntimeError::DebugOutput)?;
     }
     Ok(results)

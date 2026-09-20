@@ -67,16 +67,14 @@ class PythonApiTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 load(path)
 
-    def test_example_runs_from_another_working_directory_and_prints_final_core_data(self):
+    def test_example_runs_from_another_working_directory_and_reports_unknown_roles(self):
         script = Path(__file__).with_name("main.py").resolve()
         with tempfile.TemporaryDirectory() as directory:
             result = subprocess.run([sys.executable, str(script)], cwd=directory,
                                     capture_output=True, text=True, check=True)
-        self.assertEqual(result.stdout.count("[CORE DEBUG]"), 3)
-        self.assertIn("Body:", result.stdout)
-        self.assertIn("src/", result.stdout)
-        self.assertIn("Global Index: 2", result.stdout)
-        self.assertIn("Role Index: 1", result.stdout)
+        self.assertEqual(result.stdout.count("Unknown Role: Directory"), 2)
+        self.assertEqual(result.stdout.count("Unknown Role: Config"), 1)
+        self.assertNotIn("[CORE DEBUG]", result.stdout)
         self.assertIn("Loaded 3 Roles", result.stdout)
         self.assertNotIn("[HANDOFF]", result.stdout)
 
