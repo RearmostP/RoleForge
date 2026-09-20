@@ -1,5 +1,5 @@
 // Input: Separate built-in and dynamic Role registry JSON files.
-// Output: Registered entry paths resolved from stable RoleForge directories.
+// Output: Resolved entry paths, unknown names, or structured registration conflicts.
 
 use std::{
     collections::HashMap,
@@ -17,6 +17,17 @@ struct Entry {
 pub(crate) struct Registry {
     builtin: HashMap<String, PathBuf>,
     dynamic: HashMap<String, PathBuf>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum LookupResult<'a> {
+    Resolved(&'a Path),
+    Unknown,
+    Conflict {
+        name: &'a str,
+        builtin_entry: &'a Path,
+        dynamic_entry: &'a Path,
+    },
 }
 
 impl Registry {
@@ -37,12 +48,16 @@ impl Registry {
         })
     }
 
-    pub(crate) fn get_entry(&self, name: &str) -> Option<&Path> {
-        // Built-in registrations take precedence on a cross-registry name collision.
-        self.builtin
-            .get(name)
-            .or_else(|| self.dynamic.get(name))
-            .map(PathBuf::as_path)
+    pub(crate) fn get_entry(&self, name: &str) -> LookupResult<'_> {
+        match (self.builtin.get_key_value(name), self.dynamic.get(name)) {
+            (Some((name, builtin_entry)), Some(dynamic_entry)) => LookupResult::Conflict {
+                name,
+                builtin_entry,
+                dynamic_entry,
+            },
+            (Some((_, entry)), None) | (None, Some(entry)) => LookupResult::Resolved(entry),
+            (None, None) => LookupResult::Unknown,
+        }
     }
 }
 
@@ -83,13 +98,13 @@ mod tests {
         assert!(root.is_absolute());
         assert_eq!(
             registry.get_entry("Builtin"),
-            Some(root.join("builtin_roles/Builtin/entry").as_path())
+            LookupResult::Resolved(root.join("builtin_roles/Builtin/entry").as_path())
         );
         assert_eq!(
             registry.get_entry("Dynamic"),
-            Some(root.join("roles/Dynamic/entry").as_path())
+            LookupResult::Resolved(root.join("roles/Dynamic/entry").as_path())
         );
-        assert_eq!(registry.get_entry("Missing"), None);
+        assert_eq!(registry.get_entry("Missing"), LookupResult::Unknown);
     }
 
     #[test]
@@ -103,13 +118,13 @@ mod tests {
         ] {
             assert_eq!(
                 registry.unwrap().get_entry("External"),
-                Some(path.as_path())
+                LookupResult::Resolved(path.as_path())
             );
         }
     }
 
     #[test]
-    fn builtin_wins_a_cross_registry_name_collision() {
+    fn cross_registry_name_collision_preserves_name_and_both_resolved_entries() {
         let registry = Registry::from_json(
             r#"{"Same":{"entry":"builtin/entry"}}"#,
             r#"{"Same":{"entry":"dynamic/entry"}}"#,
@@ -117,11 +132,13 @@ mod tests {
         .unwrap();
         assert_eq!(
             registry.get_entry("Same"),
-            Some(
-                roleforge_root()
+            LookupResult::Conflict {
+                name: "Same",
+                builtin_entry: roleforge_root()
                     .join("builtin_roles/builtin/entry")
-                    .as_path()
-            )
+                    .as_path(),
+                dynamic_entry: roleforge_root().join("roles/dynamic/entry").as_path(),
+            }
         );
     }
 

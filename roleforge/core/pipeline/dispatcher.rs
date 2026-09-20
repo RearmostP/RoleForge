@@ -1,26 +1,49 @@
 // Input: Ordered clean Roles and a loaded Role registry.
-// Output: Ordered resolved destinations or structured unknown Roles, without execution.
+// Output: Ordered resolved, unknown, or conflicting Roles, without execution.
 
 use std::path::PathBuf;
 
 use super::models::CleanRole;
-use crate::core::registry::Registry;
+use crate::core::registry::{LookupResult, Registry};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum DispatchResult {
-    Resolved { role: CleanRole, entry: PathBuf },
-    Unknown { role: CleanRole },
+    Resolved {
+        role: CleanRole,
+        entry: PathBuf,
+    },
+    Unknown {
+        role: CleanRole,
+    },
+    Conflict {
+        role: CleanRole,
+        builtin_entry: PathBuf,
+        dynamic_entry: PathBuf,
+    },
 }
 
 pub(crate) fn dispatch(roles: Vec<CleanRole>, registry: &Registry) -> Vec<DispatchResult> {
     roles
         .into_iter()
         .map(|role| match registry.get_entry(&role.name) {
-            Some(entry) => DispatchResult::Resolved {
+            LookupResult::Resolved(entry) => DispatchResult::Resolved {
                 role,
                 entry: entry.to_path_buf(),
             },
-            None => DispatchResult::Unknown { role },
+            LookupResult::Unknown => DispatchResult::Unknown { role },
+            LookupResult::Conflict {
+                builtin_entry,
+                dynamic_entry,
+                ..
+            } => {
+                let builtin_entry = builtin_entry.to_path_buf();
+                let dynamic_entry = dynamic_entry.to_path_buf();
+                DispatchResult::Conflict {
+                    role,
+                    builtin_entry,
+                    dynamic_entry,
+                }
+            }
         })
         .collect()
 }
@@ -49,14 +72,16 @@ mod tests {
             vec![
                 DispatchResult::Resolved {
                     role: expected_roles.next().unwrap(),
-                    entry: registry.get_entry("Zebra").unwrap().to_path_buf(),
+                    entry: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("roleforge/builtin_roles/Zebra/entry"),
                 },
                 DispatchResult::Unknown {
                     role: expected_roles.next().unwrap()
                 },
                 DispatchResult::Resolved {
                     role: expected_roles.next().unwrap(),
-                    entry: registry.get_entry("Alpha").unwrap().to_path_buf(),
+                    entry: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("roleforge/roles/Alpha/entry"),
                 },
             ]
         );
@@ -66,6 +91,50 @@ mod tests {
         assert_eq!(role.name, "Missing");
         assert_eq!(role.index, 2);
         assert_eq!(role.source.declaration_line, 5);
+    }
+
+    #[test]
+    fn conflict_preserves_role_and_both_entries_and_continues_in_order() {
+        let registry = Registry::from_json(
+            r#"{"First":{"entry":"First/entry"},"Directory":{"entry":"Directory/entry"}}"#,
+            r#"{"Directory":{"entry":"MyDirectory/entry"},"Last":{"entry":"Last/entry"}}"#,
+        )
+        .unwrap();
+        let file = LoadedFile {
+            path: PathBuf::from("not-read.rfg"),
+            content:
+                "# heading\n@role First\nfirst\n\n@role Directory\nopaque body\n@role Last\nlast"
+                    .to_owned(),
+        };
+        let roles = tokenize(&file).unwrap();
+        let results = dispatch(roles, &registry);
+        let mut expected = tokenize(&file).unwrap().into_iter();
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("roleforge");
+        assert_eq!(
+            results,
+            vec![
+                DispatchResult::Resolved {
+                    role: expected.next().unwrap(),
+                    entry: root.join("builtin_roles/First/entry"),
+                },
+                DispatchResult::Conflict {
+                    role: expected.next().unwrap(),
+                    builtin_entry: root.join("builtin_roles/Directory/entry"),
+                    dynamic_entry: root.join("roles/MyDirectory/entry"),
+                },
+                DispatchResult::Resolved {
+                    role: expected.next().unwrap(),
+                    entry: root.join("roles/Last/entry"),
+                },
+            ]
+        );
+        let DispatchResult::Conflict { role, .. } = &results[1] else {
+            panic!("expected conflicting Role")
+        };
+        assert_eq!(role.name, "Directory");
+        assert_eq!(role.index, 2);
+        assert_eq!(role.source.declaration_line, 5);
+        assert_eq!(role.body, "opaque body\n");
     }
 
     #[test]
