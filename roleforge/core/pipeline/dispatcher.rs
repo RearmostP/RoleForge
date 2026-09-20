@@ -89,7 +89,7 @@ mod tests {
             panic!("expected unknown Role")
         };
         assert_eq!(role.name, "Missing");
-        assert_eq!(role.index, 2);
+        assert_eq!(role.index, 1);
         assert_eq!(role.source.declaration_line, 5);
     }
 
@@ -132,7 +132,7 @@ mod tests {
             panic!("expected conflicting Role")
         };
         assert_eq!(role.name, "Directory");
-        assert_eq!(role.index, 2);
+        assert_eq!(role.index, 1);
         assert_eq!(role.source.declaration_line, 5);
         assert_eq!(role.body, "opaque body\n");
     }

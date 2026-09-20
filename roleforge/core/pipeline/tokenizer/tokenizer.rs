@@ -1,21 +1,30 @@
 // Input: A LoadedFile, already read into memory.
 // Output: Ordered clean Roles, or a local tokenizer error.
 
+use std::collections::HashMap;
+
 use super::{TokenizeError, role_content, role_scanner};
 use crate::core::pipeline::models::{CleanRole, LoadedFile, SourceInfo};
 
 pub(crate) fn tokenize(file: &LoadedFile) -> Result<Vec<CleanRole>, TokenizeError> {
     let raw_roles = role_scanner::scan(&file.content)?;
+    let mut role_counts = HashMap::new();
     Ok(raw_roles
         .into_iter()
         .enumerate()
-        .map(|(position, raw)| CleanRole {
-            index: position + 1,
-            name: raw.name.to_owned(),
-            body: role_content::clean_body(raw.body),
-            source: SourceInfo {
-                declaration_line: raw.declaration_line,
-            },
+        .map(|(position, raw)| {
+            let count = role_counts.entry(raw.name).or_insert(0);
+            let role_index = *count;
+            *count += 1;
+            CleanRole {
+                index: position,
+                role_index,
+                name: raw.name.to_owned(),
+                body: role_content::clean_body(raw.body),
+                source: SourceInfo {
+                    declaration_line: raw.declaration_line,
+                },
+            }
         })
         .collect())
 }
@@ -38,7 +47,8 @@ mod tests {
         assert_eq!(
             run("@role Directory\n  שלום 🌍\n\tdata  "),
             vec![CleanRole {
-                index: 1,
+                index: 0,
+                role_index: 0,
                 name: "Directory".to_owned(),
                 source: SourceInfo {
                     declaration_line: 1
@@ -61,14 +71,56 @@ mod tests {
         assert_eq!(
             roles
                 .iter()
-                .map(|r| (r.index, r.name.as_str(), r.body.as_str()))
+                .map(|r| (r.index, r.role_index, r.name.as_str(), r.body.as_str()))
                 .collect::<Vec<_>>(),
             vec![
-                (1, "lower_case", "a\n"),
-                (2, "PlayerInventory", "b\n"),
-                (3, "lower_case", "c")
+                (0, 0, "lower_case", "a\n"),
+                (1, 0, "PlayerInventory", "b\n"),
+                (2, 1, "lower_case", "c")
             ]
         );
+    }
+
+    #[test]
+    fn interleaved_roles_keep_both_indexes_source_order_and_declaration_lines() {
+        let roles = run(
+            "# heading\n\n@role Directory\nbody\n@role Config\n\n# comment\n@role Directory\n@role Database\n@role Directory\n@role Config",
+        );
+        assert_eq!(
+            roles
+                .iter()
+                .map(|role| (
+                    role.name.as_str(),
+                    role.index,
+                    role.role_index,
+                    role.source.declaration_line
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                ("Directory", 0, 0, 3),
+                ("Config", 1, 0, 5),
+                ("Directory", 2, 1, 8),
+                ("Database", 3, 0, 9),
+                ("Directory", 4, 2, 10),
+                ("Config", 5, 1, 11),
+            ]
+        );
+    }
+
+    #[test]
+    fn consecutive_instances_keep_independent_counters_per_tokenize_call() {
+        for _ in 0..2 {
+            let roles = run(
+                "@role Custom\n@role Custom\n@role Other\n@role Custom\n@role Custom\n@role Other",
+            );
+            assert_eq!(
+                roles
+                    .iter()
+                    .map(|role| (role.index, role.role_index))
+                    .collect::<Vec<_>>(),
+                vec![(0, 0), (1, 1), (2, 0), (3, 2), (4, 3), (5, 1)]
+            );
+        }
     }
 
     #[test]
