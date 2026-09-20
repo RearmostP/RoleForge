@@ -2,7 +2,7 @@
 // Output: Ordered clean Roles, or a local tokenizer error.
 
 use super::{TokenizeError, role_content, role_scanner};
-use crate::core::pipeline::models::{CleanRole, LoadedFile};
+use crate::core::pipeline::models::{CleanRole, LoadedFile, SourceInfo};
 
 pub(crate) fn tokenize(file: &LoadedFile) -> Result<Vec<CleanRole>, TokenizeError> {
     let raw_roles = role_scanner::scan(&file.content)?;
@@ -13,6 +13,9 @@ pub(crate) fn tokenize(file: &LoadedFile) -> Result<Vec<CleanRole>, TokenizeErro
             index: position + 1,
             name: raw.name.to_owned(),
             body: role_content::clean_body(raw.body),
+            source: SourceInfo {
+                declaration_line: raw.declaration_line,
+            },
         })
         .collect())
 }
@@ -37,9 +40,19 @@ mod tests {
             vec![CleanRole {
                 index: 1,
                 name: "Directory".to_owned(),
+                source: SourceInfo {
+                    declaration_line: 1
+                },
                 body: "  שלום 🌍\n\tdata  ".to_owned(),
             }]
         );
+    }
+
+    #[test]
+    fn declaration_lines_include_comments_and_blank_lines() {
+        let roles = run("# heading\n\n@role First\nbody\n\n\n# comment\n@role Second\nbody");
+        assert_eq!(roles[0].source.declaration_line, 3);
+        assert_eq!(roles[1].source.declaration_line, 8);
     }
 
     #[test]

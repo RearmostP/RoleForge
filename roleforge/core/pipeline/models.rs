@@ -14,4 +14,10 @@ pub(crate) struct CleanRole {
     pub(crate) index: usize,
     pub(crate) name: String,
     pub(crate) body: String,
+    pub(crate) source: SourceInfo,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct SourceInfo {
+    pub(crate) declaration_line: usize,
 }

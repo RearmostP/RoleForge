@@ -5,7 +5,7 @@ use super::tokens::{RawRole, TokenizeError};
 
 pub(super) fn scan(source: &str) -> Result<Vec<RawRole<'_>>, TokenizeError> {
     let mut roles = Vec::new();
-    let mut current: Option<(&str, usize)> = None;
+    let mut current: Option<(&str, usize, usize)> = None;
     let mut offset = 0;
 
     for (line_index, line) in source.split_inclusive('\n').enumerate() {
@@ -27,13 +27,14 @@ pub(super) fn scan(source: &str) -> Result<Vec<RawRole<'_>>, TokenizeError> {
                     line: line_index + 1,
                 });
             }
-            if let Some((previous_name, body_start)) = current {
+            if let Some((previous_name, body_start, declaration_line)) = current {
                 roles.push(RawRole {
                     name: previous_name,
                     body: &source[body_start..start],
+                    declaration_line,
                 });
             }
-            current = Some((name, offset));
+            current = Some((name, offset, line_index + 1));
         } else if current.is_none() {
             return Err(TokenizeError::ContentBeforeRole {
                 line: line_index + 1,
@@ -41,10 +42,11 @@ pub(super) fn scan(source: &str) -> Result<Vec<RawRole<'_>>, TokenizeError> {
         }
     }
 
-    if let Some((name, body_start)) = current {
+    if let Some((name, body_start, declaration_line)) = current {
         roles.push(RawRole {
             name,
             body: &source[body_start..],
+            declaration_line,
         });
     }
     Ok(roles)

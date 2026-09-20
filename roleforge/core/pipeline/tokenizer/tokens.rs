@@ -4,6 +4,7 @@
 pub(super) struct RawRole<'a> {
     pub(super) name: &'a str,
     pub(super) body: &'a str,
+    pub(super) declaration_line: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
