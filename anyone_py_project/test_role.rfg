@@ -1,0 +1,9 @@
+@role Directory
+src/
+tests/
+
+@role Config
+debug = true
+
+@role Directory
+assets/
