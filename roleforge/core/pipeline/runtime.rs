@@ -1,12 +1,12 @@
 // Input: A source path, an already loaded registry, and temporary development output.
-// Output: Ordered dispatch results after temporary handoff, or a pipeline error.
+// Output: Ordered final Core results before real handoff, or a pipeline error.
 
 use std::{io, path::Path};
 
 use super::{
     dispatcher::{DispatchResult, dispatch},
+    final_core_debug,
     loader::load_file,
-    temporary_handoff,
     tokenizer::{TokenizeError, tokenize},
 };
 use crate::core::registry::Registry;
@@ -15,7 +15,7 @@ use crate::core::registry::Registry;
 pub(crate) enum RuntimeError {
     Load(io::Error),
     Tokenize(TokenizeError),
-    TemporaryHandoff(io::Error),
+    DebugOutput(io::Error),
 }
 
 // The caller can reuse a registry across files and pass stdout().lock() for
@@ -29,10 +29,7 @@ pub(crate) fn run_file(
     let roles = tokenize(&file).map_err(RuntimeError::Tokenize)?;
     let results = dispatch(roles, registry);
     for result in &results {
-        if let DispatchResult::Resolved { role, entry } = result {
-            temporary_handoff::deliver(role, entry, output)
-                .map_err(RuntimeError::TemporaryHandoff)?;
-        }
+        final_core_debug::inspect(result, output).map_err(RuntimeError::DebugOutput)?;
     }
     Ok(results)
 }

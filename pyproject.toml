@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "roleforge"
+requires-python = ">=3.10"
+dynamic = ["version"]
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "roleforge._native"

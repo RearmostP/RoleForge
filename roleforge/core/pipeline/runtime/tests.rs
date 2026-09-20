@@ -54,7 +54,7 @@ fn role(name: &str, index: usize, role_index: usize, line: usize, body: &str) ->
 }
 
 #[test]
-fn project_file_reaches_handoff_with_order_metadata_bodies_and_destinations() {
+fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let path = root.join("anyone_py_project/test_role.rfg");
     let registry = Registry::from_json(
@@ -114,16 +114,18 @@ fn project_file_reaches_handoff_with_order_metadata_bodies_and_destinations() {
             unreachable!()
         };
         assert!(trace.contains(&format!(
-            "Global Index: {}\nRole Index: {}\nEntry: {}",
+            "Global Index: {}\nRole Index: {}\nDeclaration Line: {}\nBody:\n{}\nStatus: Resolved\nEntry: {}",
             role.index,
             role.role_index,
+            role.source.declaration_line,
+            role.body,
             entry.display()
         )));
     }
 }
 
 #[test]
-fn unknown_and_conflict_do_not_block_later_handoffs_or_reset_indexes() {
+fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
     let fixture = TestFile::new(
         b"@role Missing\nunknown\n@role Shared\nconflict\n@role Last\nfirst\n@role Last\nsecond",
     );
@@ -157,9 +159,9 @@ fn unknown_and_conflict_do_not_block_later_handoffs_or_reset_indexes() {
         ]
     );
     let trace = String::from_utf8(output).unwrap();
-    assert!(!trace.contains("Missing"));
-    assert!(!trace.contains("Shared"));
-    assert_eq!(trace.matches("[HANDOFF]").count(), 2);
+    assert!(trace.contains("Status: Unknown"));
+    assert!(trace.contains("Status: Conflict"));
+    assert_eq!(trace.matches("[CORE DEBUG]").count(), 4);
 }
 
 #[test]
@@ -174,12 +176,16 @@ fn stored_registry_can_be_loaded_once_and_reused() {
                 role: role("UnregisteredStage04Fixture", 0, 0, 1, "body")
             },]
         );
-        assert!(output.is_empty());
+        assert!(
+            String::from_utf8(output)
+                .unwrap()
+                .contains("Status: Unknown")
+        );
     }
 }
 
 #[test]
-fn empty_and_comment_only_files_produce_no_handoff() {
+fn empty_and_comment_only_files_produce_no_debug_output() {
     let registry = Registry::from_json("{}", "{}").unwrap();
     for content in [b"".as_slice(), b"# comment\n\n"] {
         let fixture = TestFile::new(content);
@@ -194,7 +200,7 @@ fn empty_and_comment_only_files_produce_no_handoff() {
 }
 
 #[test]
-fn load_failures_preserve_io_errors_without_handoff() {
+fn load_failures_preserve_io_errors_without_debug_output() {
     let registry = Registry::from_json("{}", "{}").unwrap();
     let fixture = TestFile::new(&[0xff]);
     let mut output = Vec::new();
@@ -209,7 +215,7 @@ fn load_failures_preserve_io_errors_without_handoff() {
 }
 
 #[test]
-fn tokenizer_failure_stops_before_any_handoff() {
+fn tokenizer_failure_stops_before_any_debug_output() {
     let registry = Registry::from_json(r#"{"Valid":{"entry":"valid"}}"#, "{}").unwrap();
     let fixture = TestFile::new(b"@role Valid\nbody\n@role\n");
     let mut output = Vec::new();
@@ -236,6 +242,6 @@ fn temporary_output_failure_is_returned() {
     let registry = Registry::from_json(r#"{"Valid":{"entry":"valid"}}"#, "{}").unwrap();
     let fixture = TestFile::new(b"@role Valid\nbody");
     assert!(
-        matches!(run_file(&fixture.0, &registry, &mut BrokenOutput), Err(RuntimeError::TemporaryHandoff(error)) if error.kind() == io::ErrorKind::BrokenPipe)
+        matches!(run_file(&fixture.0, &registry, &mut BrokenOutput), Err(RuntimeError::DebugOutput(error)) if error.kind() == io::ErrorKind::BrokenPipe)
     );
 }
