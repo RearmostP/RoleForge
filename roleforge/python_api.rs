@@ -4,13 +4,14 @@ use std::{io, path::PathBuf};
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
-    types::PyTuple,
+    types::{PyList, PyTuple},
 };
 
 use crate::core::{
+    bridges::Bridges,
     pipeline::{
         dispatcher::DispatchResult,
-        runtime::{RuntimeError, run_file},
+        runtime::{RuntimeError, run_file_with_bridges},
         tokenizer::TokenizeError,
     },
     registry::Registry,
@@ -63,54 +64,83 @@ impl From<DispatchResult> for RoleInfo {
     }
 }
 
-/// A loaded source and its neutral Role metadata in global source order.
-/// Dynamic Role attributes and start() belong to the future Role API.
-#[pyclass(frozen, get_all, module = "roleforge")]
+/// A loaded source, discovery metadata, and successfully delivered native Roles.
+#[pyclass(frozen, module = "roleforge")]
 struct Project {
+    #[pyo3(get)]
     path: PathBuf,
+    #[pyo3(get)]
     roles: Py<PyTuple>,
+    live: Py<PyAny>,
+}
+
+#[pymethods]
+impl Project {
+    fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+        self.live.call_method1(py, "by_attribute", (name,))
+    }
+
+    #[pyo3(signature = (name, role_index=0))]
+    fn get_role(&self, py: Python<'_>, name: &str, role_index: isize) -> PyResult<Py<PyAny>> {
+        self.live.call_method1(py, "by_name", (name, role_index))
+    }
 }
 
 /// Discover Roles and deliver resolved instances; never automatically call start().
 #[pyfunction]
 fn load(py: Python<'_>, path: PathBuf) -> PyResult<Project> {
     let registry = Registry::load()?;
-    let results =
-        run_file(&path, &registry, &mut io::stdout().lock()).map_err(|error| match error {
-            RuntimeError::Load(error) | RuntimeError::DebugOutput(error) => PyErr::from(error),
-            RuntimeError::Handoff {
-                name,
-                index,
-                target,
-                error,
-            } => {
-                use crate::core::pipeline::handoff::HandoffError;
-                let detail = match error {
-                    HandoffError::UnknownBridge(via) => format!("UnknownBridge: {via}"),
-                    HandoffError::Delivery(error) => format!("{error:?}"),
-                };
-                PyRuntimeError::new_err(format!(
-                    "Role {name} (index {index}), {}: {detail}",
-                    target.display()
-                ))
-            }
-            RuntimeError::Tokenize(error) => {
-                let (line, message) = match error {
-                    TokenizeError::MissingRoleName { line } => (line, "missing Role name"),
-                    TokenizeError::ContentBeforeRole { line } => {
-                        (line, "content before first Role")
-                    }
-                };
-                PyValueError::new_err(format!("{}:{line}: {message}", path.display()))
-            }
-        })?;
+    let results = run_file_with_bridges(
+        &path,
+        &registry,
+        &Bridges::with_builtins(),
+        &mut io::stdout().lock(),
+    )
+    .map_err(|error| match error {
+        RuntimeError::Load(error) | RuntimeError::DebugOutput(error) => PyErr::from(error),
+        RuntimeError::Handoff {
+            name,
+            index,
+            target,
+            error,
+        } => {
+            use crate::core::pipeline::handoff::HandoffError;
+            let detail = match error {
+                HandoffError::UnknownBridge(via) => format!("UnknownBridge: {via}"),
+                HandoffError::Delivery(error) => format!("{error:?}"),
+            };
+            PyRuntimeError::new_err(format!(
+                "Role {name} (index {index}), {}: {detail}",
+                target.display()
+            ))
+        }
+        RuntimeError::Tokenize(error) => {
+            let (line, message) = match error {
+                TokenizeError::MissingRoleName { line } => (line, "missing Role name"),
+                TokenizeError::ContentBeforeRole { line } => (line, "content before first Role"),
+            };
+            PyValueError::new_err(format!("{}:{line}: {message}", path.display()))
+        }
+    })?;
+    let live = py
+        .import("roleforge._live")?
+        .call_method1(
+            "_ProjectRoles",
+            (PyList::new(
+                py,
+                results.delivered.into_iter().map(|(_, live)| live),
+            )?,),
+        )?
+        .unbind();
     let roles = results
+        .roles
         .into_iter()
         .map(|result| Py::new(py, RoleInfo::from(result)))
         .collect::<PyResult<Vec<_>>>()?;
     Ok(Project {
         path,
         roles: PyTuple::new(py, roles)?.unbind(),
+        live,
     })
 }
 

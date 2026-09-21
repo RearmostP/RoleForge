@@ -517,7 +517,7 @@ After this boundary, Core does not orchestrate the Role's internal processing. T
 
 > Bridges adapt the same logical RoleInput contract to their destination environments.
 
-Bridges belong to the Rust Core. Core models do not contain PyO3 objects. Python receives a frozen object with the same fields and a frozen nested source object.
+Bridges belong to the Rust Core. Neutral Core models do not contain PyO3 objects. The Python Bridge adapts frozen input into a live Python Role with the same read-only fields and frozen nested source object. The live object can hold separate mutable Role-defined state. Runtime and Handoff transport a generic Bridge result without inspecting native behavior; Python ownership remains in the Python Bridge/API boundary.
 
 > Every Role implementation must expose a receiving entry point compatible with its Bridge.
 
@@ -536,6 +536,8 @@ Generic Handoff resolves `via` exactly and supplies the resolved target and Role
 Python is currently the first and only real built-in delivery Bridge. The temporary Rust Bridge was removed; `rust` is not registered. Future Rust receiving/loading/ABI mechanisms are intentionally undecided.
 
 The Python Bridge uses the existing PyO3 integration and explicit file loading. Full canonical paths produce distinct module names, without import searches or sys.path changes. Each handoff loads fresh source; there is no persistent module cache. The temporary sys.modules binding is restored after the call. Package discovery, process isolation, async execution, serialization, and other environments are not implemented.
+
+Stage 09 adds an optional target-module `Role` subclass of `roleforge.Role`, constructed by the Bridge with its adapted input. Without that class the Bridge creates a generic live Role. The inherited constructor supplies input fields; `roleforge_receive` initializes Role state, and methods on the class define its API. Receiver return values remain ignored. The Bridge returns an owned PyO3 reference to the same successfully received object; Project retains it. Its input, class, and method globals survive temporary module-binding cleanup. No Role names or method semantics are embedded in Core or the Bridge.
 
 Target load failures, missing receivers, non-callable receivers, and receiver exceptions remain distinct structured failures. Unknown Bridge resolution is an explicit Handoff error. The public Python API raises RuntimeError with Role identity, target and failure category. Delivery stops on the first delivery failure; previous successful calls are not rolled back. This is current behavior, not a final Error Manager policy.
 
@@ -672,7 +674,9 @@ There should be one underlying Core operation, with convenience interfaces aroun
 
 Convenience interfaces must preserve source-driven discovery and the same architectural boundaries. They must not become competing semantic pipelines that infer Role identity differently.
 
-The current Python API provides `load(path)`, returning a read-only Project and discovered Role metadata. Stage 08 load performs receiving handoff for resolved Python Roles. Dynamic attributes such as `project.directory` are not implemented. The final Python API syntax and final Project object model are not fully finalized. Public API examples in this document are conceptual unless explicitly identified as contractual. The philosophy does not fix method names, loading syntax, wrapper types, or how Role-specific APIs attach to the loaded result.
+The current Python API provides `load(path)`, returning Project with read-only path and RoleInfo metadata plus successfully delivered live Role objects. RoleInput is the neutral handoff contract, RoleInfo is discovery/routing metadata, and the live Role is the native callable/stateful representation. The filename identifies Project/source context; `(name, role_index)` identifies an occurrence within it, while `index` retains global source order.
+
+Stage 09 exposes `project.test`, `project.test[role_index]`, and exact-name `project.get_role("Test", role_index=0)`. Dynamic names use only Python `lower()` and must be valid non-keyword identifiers. Existing Project members take precedence; ambiguous lowercase mappings raise AttributeError rather than choosing a Role. Exact-name access covers reserved and unusual names. Broader naming conversions and aliases remain undecided. A missing dynamic attribute raises AttributeError, a missing exact name raises KeyError, and a nonexistent Role-local index raises IndexError. Negative indexes are not sequence offsets and slices are unsupported. Unknown Roles and conflict-aborted deliveries create no live instances.
 
 ## 24. Multiple instances of the same Role
 
@@ -689,23 +693,23 @@ Multiple declarations of the same Role name are valid:
 
 Core must not assume there is only one Directory instance. In this example, the Directory instances have global indexes 0 and 2, and Role-local indexes 0 and 1.
 
-The current conceptual API direction can use Role-local indexing to select an instance:
+Stage 09 uses Core-assigned Role-local indexing to select a successfully delivered instance:
 
 ```python
-# Conceptual syntax, not a finalized Python object model.
+# If the registered Directory Role defines validate():
 project.directory[0].validate()
 project.directory[1].validate()
 ```
 
-`project.directory[0]` conceptually selects the first Directory instance by Role-local index, regardless of its global source index. The Role defines the meaning and availability of `validate()`; Core does not impose that method on all Roles.
+`project.directory[0]` selects the first Directory instance by Role-local index, regardless of its global source index. The Role defines the meaning and availability of `validate()`; Core does not impose that method on all Roles.
 
-Do not document the following expression as inherently identifying one unique instance:
+The following shorthand selects Role-local instance zero, even when multiple instances exist:
 
 ```python
 project.directory.validate()
 ```
 
-Its behavior is undecided when there is one Directory instance, multiple Directory instances, or zero Directory instances. Do not invent automatic singleton selection, broadcasting, or any other shorthand behavior. Exact selection syntax and the Python object model remain subject to later API design.
+`project.directory is project.directory[0]` is true. Every occurrence retains separate identity and state; no duplicate wrapper object is needed for the shorthand. When no live Directory exists, attribute access raises AttributeError. This is instance selection, not broadcasting or Runtime-managed execution. Public methods run only when called by the user.
 
 ## 25. Future named Role instances and aliases: undecided
 
@@ -833,6 +837,7 @@ The currently completed Core development stages are recorded here for context:
 | Stage 06 | Complete conflict preflight |
 | Stage 07 | Core Bridge abstraction and temporary placeholders |
 | Stage 08 | Neutral RoleInput and real Python receiving handoff |
+| Stage 09 | Live Python Role objects, Project access, and per-instance behavior/state |
 
 The Main Parser was intentionally removed from the Core architecture. It must not be restored by interpreting an old stage plan as an unfulfilled architectural requirement.
 
@@ -848,8 +853,8 @@ Small corrections to a completed stage do not automatically create a new numbere
 | --- | --- |
 | Cross-language execution mechanism | Implementation language is not part of Role identity or resolution. |
 | Rust and other future Role delivery protocols | Python file delivery and roleforge_receive(role) are established; Rust ABI/loading/receiving rules remain undecided. |
-| Final Project/Public API object model | Keep the conceptual engine/loaded-result/Role distinction and source-driven discovery. |
-| Single-instance shorthand behavior | Do not assign meaning to unindexed access for one, multiple, or zero instances. |
+| Further Project/Public API expansion | Preserve Stage 09 live access, metadata separation, and source-driven discovery. |
+| Broader naming conventions | Preserve lowercase access and exact-name lookup; do not invent snake_case conversion or aliases. |
 | Named Role instance / alias system | The idea is not an approved feature. |
 | Alias and named-instance syntax | Do not extend tokenizer syntax or define inheritance, uniqueness, registry behavior, or API exposure for it. |
 | Final Role registration/install/remove API | Dynamic registration remains a capability; install, register, unregister, remove, and location-override APIs are not finalized. |

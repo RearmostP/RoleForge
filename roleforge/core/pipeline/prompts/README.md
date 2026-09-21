@@ -18,6 +18,7 @@ Use the live human documentation for current usage and the live Iron Rules for a
 | 06 | [Role Handoff](06_role_handoff.md) | Establish complete conflict preflight and temporary Unknown/Conflict reporting before delivery. |
 | 07 | [Core Bridges](07_core_bridges.md) | Introduce common Bridge registration and resolution, with temporary Python and Rust placeholders. |
 | 08 | [Python Role Handoff](08_python_role_handoff.md) | Introduce RoleInput and entry { via, target }, connect real Python receipt, and remove the Rust placeholder. |
+| 09 | [Live Role Objects](09_live_role_objects.md) | Retain Bridge-created Python instances in Project, expose Role methods and per-name indexing, and preserve neutral metadata. |
 
 For example, the Rust Bridge in Stage 07 is historical: Stage 08 removed it. The old string Registry entries likewise do not describe today's structured entries. Read the [Creating Roles guide](../../../../docs/human/en/CREATING_ROLES.md) for current examples.
 

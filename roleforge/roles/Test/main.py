@@ -1,4 +1,15 @@
+from roleforge import Role as BaseRole
+
+
+class Role(BaseRole):
+    def hello(self):
+        self.calls += 1
+        print(f"Hello from {self.name}[{self.role_index}]!")
+        return self.body
+
+
 def roleforge_receive(role):
+    role.calls = 0
     print("=== ROLEFORGE TEST ROLE ===")
     print("Role received successfully!")
     print(f"name: {role.name}")

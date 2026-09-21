@@ -11,13 +11,14 @@ fn run_file(
 ) -> Result<Vec<DispatchResult>, RuntimeError> {
     struct Probe;
     impl Bridge for Probe {
+        type Live = ();
         fn deliver(&self, _: &Path, _: RoleInput) -> Result<(), BridgeError> {
             Ok(())
         }
     }
     let mut bridges = Bridges::default();
     bridges.register("python", Probe);
-    run_file_with_bridges(path, registry, &bridges, output)
+    run_file_with_bridges(path, registry, &bridges, output).map(|result| result.roles)
 }
 use crate::core::pipeline::models::{CleanRole, SourceInfo};
 use std::{
@@ -292,5 +293,30 @@ fn temporary_output_failure_is_returned() {
     let fixture = TestFile::new(b"@role Valid\nbody");
     assert!(
         matches!(run_file(&fixture.0, &registry, &mut BrokenOutput), Err(RuntimeError::DebugOutput(error)) if error.kind() == io::ErrorKind::BrokenPipe)
+    );
+}
+
+#[test]
+fn native_results_keep_global_identity_without_reindexing_unknown_roles() {
+    struct Identity;
+    impl Bridge for Identity {
+        type Live = (String, usize);
+        fn deliver(&self, _: &Path, role: RoleInput) -> Result<Self::Live, BridgeError> {
+            Ok((role.body, role.role_index))
+        }
+    }
+    let registry = Registry::from_json(
+        "{}",
+        r#"{"Example":{"entry":{"via":"probe","target":"opaque"}}}"#,
+    )
+    .unwrap();
+    let fixture = TestFile::new(b"@role Example\nfirst\n@role Missing\n@role Example\nlast");
+    let mut bridges = Bridges::default();
+    bridges.register("probe", Identity);
+    let result = run_file_with_bridges(&fixture.0, &registry, &bridges, &mut Vec::new()).unwrap();
+    assert_eq!(result.roles.len(), 3);
+    assert_eq!(
+        result.delivered,
+        vec![(0, ("first\n".into(), 0)), (2, ("last".into(), 1))]
     );
 }

@@ -11,11 +11,11 @@ pub(crate) enum HandoffError {
     Delivery(BridgeError),
 }
 
-pub(super) fn deliver(
-    bridges: &Bridges,
+pub(super) fn deliver<T>(
+    bridges: &Bridges<T>,
     entry: &RoleEntry,
     role: &CleanRole,
-) -> Result<(), HandoffError> {
+) -> Result<T, HandoffError> {
     let bridge = bridges
         .resolve(&entry.via)
         .ok_or_else(|| HandoffError::UnknownBridge(entry.via.clone()))?;

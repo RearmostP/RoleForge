@@ -20,7 +20,15 @@ roleforge/
 In `roleforge/roles/Test/main.py`:
 
 ```python
+from roleforge import Role as BaseRole
+
+class Role(BaseRole):
+    def hello(self):
+        self.calls += 1
+        return self.body
+
 def roleforge_receive(role):
+    role.calls = 0
     print(role.name)
     print(role.index)
     print(role.role_index)
@@ -32,7 +40,7 @@ def roleforge_receive(role):
 
 Receipt means that RoleForge delivered a discovered instance. It does not mean that Core should execute your user-facing operations. `start()` is separate and is not automatically called. Returning normally counts as successful receipt; any return value is ignored. Raising an exception fails delivery.
 
-The existing [Test implementation](../../../roleforge/roles/Test/main.py) adds descriptive labels to these prints. It contains no parser, classes, persistent state, or start function.
+The existing [Test implementation](../../../roleforge/roles/Test/main.py) also prints labels and exposes `hello()`. The optional target-module `Role` class subclasses `roleforge.Role`. Its inherited constructor adapts RoleInput without field-copying boilerplate; initialize state in `roleforge_receive`. Targets without a `Role` class receive a generic live Role. A declared `Role` must be a subclass and accept the inherited one-input construction contract. The Bridge does not infer APIs from other module functions or interpret method names.
 
 ## 2. Register the destination
 
@@ -82,6 +90,7 @@ number = 123
 from roleforge import load
 
 project = load("test.rfg")
+print(project.test.hello())
 ```
 
 Do not import the Role manually. `load()` reads the file, discovers `Test`, resolves its entry, checks conflicts, creates RoleInput, selects the Python Bridge, loads the target, and calls `roleforge_receive(role)`.
@@ -92,7 +101,7 @@ A relative path passed to `load()` is relative to the caller's working directory
 
 ## 4. Understand RoleInput
 
-Python receives one read-only object, including read-only nested source metadata:
+Python receives a live object whose input-derived fields and nested source metadata remain read-only. Other attributes can hold per-instance state:
 
 | Attribute | Meaning |
 | --- | --- |
@@ -134,7 +143,11 @@ hello = second
 
 One registration delivers both instances independently to the same receiver, in source order. The calls receive `(index, role_index)` values `(0, 0)` and `(1, 1)`, with declaration lines `1` and `5`. With LF endings, their bodies are `'\nhello = first\n\n'` and `'\nhello = second\n'`.
 
-`project.roles` provides ordered discovery metadata. It is not a Role API: `project.test[1]` and `project.test.start()` are not implemented. The [overview](README.md#what-load-returns) describes the existing Project/RoleInfo fields.
+`project.test is project.test[0]` is true. `project.test[1]` is a distinct live object, and `hello()` observes that object's body and state. `project.roles` remains ordered `RoleInfo` discovery/routing metadata; it is separate from both neutral RoleInput and live instances. The source filename identifies the Project context, while `(name, role_index)` identifies an occurrence within it; `index` retains global source order.
+
+Dynamic attributes use only `name.lower()`, with no snake_case conversion. Only valid non-keyword Python identifiers are exposed this way. Existing Project attributes/methods take precedence. Case collisions raise `AttributeError`; use `project.get_role("ExactName", role_index)` for exact-name access, including reserved or unusual names. A missing dynamic attribute raises `AttributeError`, a missing exact name raises `KeyError`, and a nonexistent index (including negative indexes) raises `IndexError`. Indexing selects Core's Role-local identity, not Python sequence offsets; slices are unsupported. Broader naming and alias policies remain open.
+
+For advanced implementations managing their own representation, `role.role_input` exposes the frozen input; retain custom objects as Role state without changing the ignored receiver return value.
 
 ## Outer syntax to respect
 
@@ -146,7 +159,7 @@ One registration delivers both instances independently to the same receiver, in 
 
 ## Loading limits and diagnosing failures
 
-The Bridge loads an explicit file in the current Python process. It loads source afresh for each delivery, uses the full canonical path to avoid basename collisions, and restores its temporary `sys.modules` binding afterward. Do not rely on persistent module globals across deliveries. It does not discover packages, search for Roles, or add target directories to `sys.path`.
+The Bridge loads an explicit file in the current Python process. It loads source afresh for each delivery, uses the full canonical path to avoid basename collisions, and restores its temporary `sys.modules` binding afterward. Do not rely on persistent module globals across deliveries. Live instances retain their input, class, and method globals after `load()` returns, including when an instance is retained after Project is released. It does not discover packages, search for Roles, or add target directories to `sys.path`.
 
 Unknown Bridge identifiers, unloadable targets, missing receivers, non-callable receivers, and receiver exceptions produce distinct internal errors exposed as `RuntimeError` with context. Fix the registration/file/receiver indicated. No alternative receiver or Bridge is tried. See the [routing table](README.md#routing-and-failures-today) for Unknown Roles and Conflict preflight.
 

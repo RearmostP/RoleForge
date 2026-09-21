@@ -35,6 +35,7 @@ fn only_python_is_registered_and_unknown_identifiers_never_fall_back() {
 
 struct Probe;
 impl Bridge for Probe {
+    type Live = ();
     fn deliver(&self, target: &Path, received: RoleInput) -> Result<(), BridgeError> {
         assert_eq!(target, Path::new("unchanged:target/with.no-convention"));
         assert_eq!(received, role());

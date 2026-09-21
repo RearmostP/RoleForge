@@ -19,9 +19,11 @@ With the package built from this checkout and `Test` registered, loading that so
 from roleforge import load
 
 project = load("test.rfg")
+project.test.hello()
+project.test[0].hello()  # Same live instance.
 ```
 
-The Role implements `roleforge_receive(role)` and receives its name, body, indexes, and source metadata in one read-only object. Core does not interpret `hello = world`; that belongs to the Role. Receipt does not automatically call `start()`.
+The Role implements `roleforge_receive(role)` and receives a live Python object with read-only name, body, indexes, and source metadata. An optional `Role` subclass defines methods; the receiver initializes per-instance state. The Python Bridge creates the object and Project retains it after delivery. Core does not interpret `hello = world`; that belongs to the Role. Receipt does not automatically call `start()`.
 
 The repository includes a working [Test Role](roleforge/roles/Test/main.py), its [registration](roleforge/core/storage/dynamic_roles.json), and a [Python example](anyone_py_project/main.py) that delivers two instances from [test.rfg](anyone_py_project/test.rfg). See the setup instructions before running it.
 
@@ -41,4 +43,4 @@ The repository includes a working [Test Role](roleforge/roles/Test/main.py), its
 - [docs/ai/](docs/ai/CORE_IRON_RULES.md): detailed architectural guardrails for AI-assisted development.
 - [Prompt history](roleforge/core/pipeline/prompts/README.md): historical development records, not current usage documentation.
 
-The current setup reads Registry files from the source checkout associated with the build. Distribution and runtime packaging rules are not finalized. There is no dynamic `project.test` API, automatic Role installation, or finalized Role execution lifecycle.
+The current setup reads Registry files from the source checkout associated with the build. Distribution and runtime packaging rules are not finalized. Live access supports `project.test`, `project.test[1]`, and exact-name `project.get_role("Test", 1)`. `project.roles` remains discovery metadata. Automatic Role installation and a finalized execution lifecycle remain open.

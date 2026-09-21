@@ -22,7 +22,7 @@ RoleForge מאפשר לשלב כמה Roles עצמאיים בפורמט מקור 
 
 Runtime מתאם את הפעולות; רכיב מרכזי אינו מפעיל בעצמו את הרכיב המרכזי הבא. אין Main Parser: אם צריך לנתח את השפה של Role, זה תפקידו של ה־Role.
 
-ה־Python Bridge כתוב ב־Rust ומשתמש ב־PyO3, כמו ממשק ה־Python הציבורי. מודלי Core נשארים נתוני Rust רגילים; ה־Bridge מתאים אותם לאובייקט Python לקריאה בלבד. אחריות המסירה של Core מסתיימת כשה־receiver חוזר בהצלחה. לערך החזרה שלו אין משמעות פרוטוקולית.
+ה־Python Bridge כתוב ב־Rust ומשתמש ב־PyO3 ובעזר קטן לייצוג ב־Python. מודלי Core נשארים נתוני Rust רגילים. ה־Bridge יוצר מופע חי עם שדות קלט לקריאה בלבד ומתודות ומצב שה־Role מגדיר. אחריות המסירה של Core מסתיימת כשה־receiver חוזר בהצלחה. לערך החזרה שלו אין משמעות פרוטוקולית; Project שומר את המופע שיצר ה־Bridge.
 
 ## הרצת הדוגמה הקיימת
 
@@ -55,7 +55,7 @@ python -u anyone_py_project/main.py
 
 [הדוגמה](../../../anyone_py_project/main.py) מוצאת את קובץ ה־`.rfg` שלצדה ואינה מייבאת את ה־Role ידנית. [ה־Registry הדינמי](../../../roleforge/core/storage/dynamic_roles.json) כבר כולל את `Test`, עם `via: "python"` ו־`target: "Test/main.py"`.
 
-ה־receiver מדפיס שני מופעים: אינדקסים `0/0` ו־`1/1`, שורות הצהרה `1` ו־`5`, וגופים שמכילים `hello = first` ו־`hello = second`. מופיע גם פלט דיבוג זמני של Core. הדוגמה מוכיחה קבלה של מידע; היא אינה מדגימה parser או הפעלת `start()`.
+ה־receiver מדפיס שני מופעים: אינדקסים `0/0` ו־`1/1`, שורות הצהרה `1` ו־`5`, וגופים שמכילים `hello = first` ו־`hello = second`. מופיע גם פלט דיבוג זמני של Core. לאחר מכן הדוגמה קוראת ל־`hello()` דרך מופע אפס המשתמע, דרך `[0]` ודרך `[1]`. אין כאן parser או הפעלת `start()`.
 
 אם `import roleforge` נכשל, ודאו שאתם מריצים את אותו Python שבו התקנתם את הפרויקט. עותק מקור שלא נבנה אינו מספק את ההרחבה המקומית. לאחר שינוי Rust יש לבנות מחדש. גם לאחר העברת עותק המקור למיקום אחר צריך לבנות מחדש, כי מיקום ה־Registry נקבע כיום בזמן הבנייה.
 
@@ -71,7 +71,18 @@ for info in project.roles:
 
 ל־`Project` יש שני שדות לקריאה בלבד: `path` ו־`roles`. השדה `roles` הוא tuple של רשומות `RoleInfo`, גם הן לקריאה בלבד, לפי סדר המקור. בכל רשומה קיימים `name`, `index`, `role_index`, `body`, `declaration_line`, `status`, `entry`, `builtin_entry` ו־`dynamic_entry`.
 
-אלו נתוני גילוי וניתוב, ולא מופעי Role שאפשר להפעיל. הם גם אינם אובייקט ה־`RoleInput` שמתקבל ב־receiver: שם מידע המקור נמצא תחת `role.source`. ברשומה שנפתרה, `entry` הוא נתיב היעד שנפתר; ברשומה עם קונפליקט זמינים שני הנתיבים המתנגשים. שדות נתיב שאינם רלוונטיים מכילים `None`.
+Roles שנמסרו בהצלחה חושפים גם API חי:
+
+```python
+project.test.hello()
+project.test[0].hello()  # The same object as project.test.
+project.test[1].hello()  # A separate occurrence with its own state.
+project.get_role("Test", 1).hello()  # Exact-name access.
+```
+
+המופעים נשארים שמישים אחרי הטעינה. שם ה־Role וה־`role_index` שקבע Core מזהים מופע בתוך Project; `index` שומר על הסדר הגלובלי, ושם הקובץ מזהה את הקשר המקור. הגישה הדינמית משתמשת באותיות קטנות; שדות Project קיימים שומרים על משמעותם, ובמקרה של התנגשות בין שמות משתמשים ב־`get_role`. פרטי השמות, השגיאות והגדרת ה־API מופיעים ב[יצירת Roles](CREATING_ROLES.md).
+
+אלו נתוני גילוי וניתוב, ולא מופעי Role שאפשר להפעיל. הם גם נפרדים מהמופע החי שמתאים את `RoleInput` עבור ה־receiver: שם מידע המקור נמצא תחת `role.source`. ברשומה שנפתרה, `entry` הוא נתיב היעד שנפתר; ברשומה עם קונפליקט זמינים שני הנתיבים המתנגשים. שדות נתיב שאינם רלוונטיים מכילים `None`.
 
 ## ניתוב ושגיאות במימוש הנוכחי
 
@@ -90,7 +101,7 @@ for info in project.roles:
 
 ממומשים: Loader, Main Tokenizer, Registry, Dispatcher, Runtime, preflight, Handoff, פתרון Bridges, מודל RoleInput ניטרלי, Python Bridge, ממשק `load()`, מטא־דאטה של מקור ואינדקסים גלובליים ולפי שם. ה־Role הדינמי `Test` מפעיל מסירה אמיתית ל־Python.
 
-טרם מומשו או הוגדרו סופית: מסירה ל־Rust, Bridges נוספים, מחזור חיים של `start()` בניהול Core, גישה דינמית כמו `project.directory` או `project.test[1]`, aliases ושמות מופעים, API להתקנה ולהסרה של Roles, ו־Error/Console Managers סופיים. הארכיטקטורה מאפשרת הוספת Bridges בעתיד, אבל אינה מבטיחה מנגנון מסוים עבורם.
+טרם מומשו או הוגדרו סופית: מסירה ל־Rust, Bridges נוספים, מחזור חיים של `start()` בניהול Core, aliases ושמות מופעים, API להתקנה ולהסרה של Roles, ו־Error/Console Managers סופיים. הארכיטקטורה מאפשרת הוספת Bridges בעתיד, אבל אינה מבטיחה מנגנון מסוים עבורם.
 
 ה־Registry של ה־Roles המובנים ריק כרגע. `roleforge/builtin_roles/` משמש בסיס ליעדים מובנים; `Test` הוא Role דינמי לצורכי פיתוח. Bridge מובנה ו־Role מובנה הם שני מושגים שונים.
 

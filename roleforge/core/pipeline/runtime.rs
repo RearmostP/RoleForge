@@ -25,22 +25,19 @@ pub(crate) enum RuntimeError {
     DebugOutput(io::Error),
 }
 
-// The caller can reuse a registry across files and pass stdout().lock() for
-// development output. This is internal orchestration, not the final public API.
-pub(crate) fn run_file(
-    path: impl AsRef<Path>,
-    registry: &Registry,
-    output: &mut impl io::Write,
-) -> Result<Vec<DispatchResult>, RuntimeError> {
-    run_file_with_bridges(path, registry, &Bridges::with_builtins(), output)
+// The result is generic over the Bridge's native value. Neutral Core models
+// and orchestration do not depend on Python or inspect native Role behavior.
+pub(crate) struct LoadResult<T> {
+    pub(crate) roles: Vec<DispatchResult>,
+    pub(crate) delivered: Vec<(usize, T)>,
 }
 
-pub(crate) fn run_file_with_bridges(
+pub(crate) fn run_file_with_bridges<T>(
     path: impl AsRef<Path>,
     registry: &Registry,
-    bridges: &Bridges,
+    bridges: &Bridges<T>,
     output: &mut impl io::Write,
-) -> Result<Vec<DispatchResult>, RuntimeError> {
+) -> Result<LoadResult<T>, RuntimeError> {
     let file = load_file(path).map_err(RuntimeError::Load)?;
     let roles = tokenize(&file).map_err(RuntimeError::Tokenize)?;
     let results = dispatch(roles, registry);
@@ -57,22 +54,31 @@ pub(crate) fn run_file_with_bridges(
     }
     if has_conflict {
         final_core_debug::handoff_aborted(output).map_err(RuntimeError::DebugOutput)?;
-        return Ok(results);
+        return Ok(LoadResult {
+            roles: results,
+            delivered: Vec::new(),
+        });
     }
 
+    let mut delivered = Vec::new();
     for result in &results {
         // Unknown is reported and skipped; resolved data remains in source order.
         final_core_debug::inspect(result, output).map_err(RuntimeError::DebugOutput)?;
         if let DispatchResult::Resolved { role, entry } = result {
-            handoff::deliver(bridges, entry, role).map_err(|error| RuntimeError::Handoff {
-                name: role.name.clone(),
-                index: role.index,
-                target: entry.target.clone(),
-                error,
-            })?;
+            let live =
+                handoff::deliver(bridges, entry, role).map_err(|error| RuntimeError::Handoff {
+                    name: role.name.clone(),
+                    index: role.index,
+                    target: entry.target.clone(),
+                    error,
+                })?;
+            delivered.push((role.index, live));
         }
     }
-    Ok(results)
+    Ok(LoadResult {
+        roles: results,
+        delivered,
+    })
 }
 
 #[cfg(test)]

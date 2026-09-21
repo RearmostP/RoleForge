@@ -20,7 +20,7 @@ The Rust Core understands Role boundaries and routing, while the Role understand
 
 Runtime orchestrates these operations. Components do not directly drive the next major component. There is no Main Parser: any parsing of a Role's language belongs to that Role.
 
-Python delivery is implemented in Rust using the same PyO3 integration as the public Python API. Core models remain ordinary Rust data; the Python Bridge exposes a corresponding read-only object. Core's delivery responsibility ends when the receiver returns successfully. Its return value has no result-protocol meaning.
+Python delivery is implemented in Rust using the same PyO3 integration as the public Python API, with a small Python representation helper. Core models remain ordinary Rust data. The Python Bridge creates a live native object with read-only input fields and Role-defined methods/state. Core's delivery responsibility ends when the receiver returns successfully. Its return value has no result-protocol meaning; Project retains the Bridge-created object.
 
 ## Run the existing example
 
@@ -53,7 +53,7 @@ python -u anyone_py_project/main.py
 
 The [example](../../../anyone_py_project/main.py) locates its `.rfg` file beside the script. It does not import the Test Role manually. The [dynamic Registry](../../../roleforge/core/storage/dynamic_roles.json) already registers `Test` with `via: "python"` and `target: "Test/main.py"`.
 
-The receiver prints two instances: indexes `0/0` and `1/1`, declaration lines `1` and `5`, and bodies containing `hello = first` and `hello = second`. Temporary Core debug output is also printed. This is a receipt demonstration, not a parser or `start()` demonstration.
+The receiver prints two instances: indexes `0/0` and `1/1`, declaration lines `1` and `5`, and bodies containing `hello = first` and `hello = second`. Temporary Core debug output is also printed. The example then calls `hello()` through implicit instance zero, explicit `[0]`, and `[1]`. No parser or `start()` is involved.
 
 If `import roleforge` fails, use the same Python environment in which you installed the checkout. An unbuilt checkout alone does not provide the native extension. Rebuild after Rust changes; rebuild if the checkout moves, because Registry paths currently depend on its build-time location.
 
@@ -69,7 +69,18 @@ for info in project.roles:
 
 `Project` has read-only `path` and `roles` attributes. `roles` is a tuple of read-only `RoleInfo` records in source order. Each record exposes `name`, `index`, `role_index`, `body`, `declaration_line`, `status`, `entry`, `builtin_entry`, and `dynamic_entry`.
 
-These records describe discovery and routing. They are not executable Role instances and are distinct from the `RoleInput` object passed to a receiver: source information there is nested under `role.source`. `entry` is the resolved target path for a resolved record; conflicting records expose both paths instead. Inapplicable paths are `None`.
+Successfully delivered Roles also expose live APIs:
+
+```python
+project.test.hello()
+project.test[0].hello()  # The same object as project.test.
+project.test[1].hello()  # A separate occurrence with its own state.
+project.get_role("Test", 1).hello()  # Exact-name access.
+```
+
+These objects remain usable after loading. Name plus Core-assigned `role_index` identifies an instance within the Project; `index` preserves global source order. The filename identifies the source context. Dynamic access uses lowercase names; existing Project members remain authoritative, and ambiguous lowercase names require `get_role`. See [Creating Roles](CREATING_ROLES.md) for naming, errors, and API definitions.
+
+These records describe discovery and routing. They are not executable Role instances and are distinct from the live object adapting `RoleInput` for a receiver: source information there is nested under `role.source`. `entry` is the resolved target path for a resolved record; conflicting records expose both paths instead. Inapplicable paths are `None`.
 
 ## Routing and failures today
 
@@ -88,7 +99,7 @@ These records describe discovery and routing. They are not executable Role insta
 
 Implemented: Rust Loader, Main Tokenizer, Registry, Dispatcher, Runtime, preflight, Handoff, Bridge resolver, neutral RoleInput, Python Bridge, Python `load()`, source metadata, and global/per-name indexes. The dynamic Test Role exercises real Python delivery.
 
-Not implemented or not finalized: Rust Role delivery, other Bridges, a Core-managed `start()` lifecycle, dynamic `project.directory` or `project.test[1]` APIs, aliases/named instances, Role install/remove APIs, and final Error/Console Managers. Additional Bridges are possible architecturally; their mechanisms are not promises or settled designs.
+Not implemented or not finalized: Rust Role delivery, other Bridges, a Core-managed `start()` lifecycle, aliases/named instances, Role install/remove APIs, and final Error/Console Managers. Additional Bridges are possible architecturally; their mechanisms are not promises or settled designs.
 
 The built-in Role Registry is currently empty. `roleforge/builtin_roles/` reserves the built-in target base; `Test` is a dynamic development Role. A built-in Bridge and a built-in Role are different concepts.
 

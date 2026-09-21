@@ -8,7 +8,7 @@ These principles describe what should remain true as RoleForge evolves. They are
 
 2. **The source determines what the Role is. The Role determines what API and behavior it exposes.** `@role Test` establishes the discovered identity. Registration provides its destination; an implementation class or an import does not replace source discovery.
 
-3. **Role discovery must happen before Role-specific behavior is exposed.** First establish which instances exist and where they occur. A convenient API must not assume a Role identity before inspecting the source. Dynamic Role convenience APIs are still future work.
+3. **Role discovery must happen before Role-specific behavior is exposed.** First establish which instances exist and where they occur. A convenient API must not assume a Role identity before inspecting the source. Project exposes only successfully delivered live instances: `project.test` and `project.test[0]` select the same object; `[1]` selects a separate occurrence. RoleInfo stays metadata. The Bridge creates the native representation, the Role defines behavior, and Project retains it; Runtime never executes its methods after loading.
 
 4. **Components process. Runtime orchestrates.** Loader reads; Main Tokenizer discovers; Registry resolves; Dispatcher produces routing results; Handoff resolves a Bridge for delivery. Runtime controls the order. A major component should not take over driving the next major component.
 

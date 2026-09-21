@@ -5,6 +5,8 @@ use std::path::Path;
 
 pub(super) struct PythonBridge;
 
+pub(crate) type LiveRole = Py<PyAny>;
+
 #[pyclass(frozen, get_all, name = "RoleSource", module = "roleforge")]
 #[derive(Clone)]
 struct PythonSource {
@@ -41,7 +43,9 @@ impl From<RoleInput> for PythonInput {
 }
 
 impl Bridge for PythonBridge {
-    fn deliver(&self, target: &Path, role: RoleInput) -> Result<(), BridgeError> {
+    type Live = LiveRole;
+
+    fn deliver(&self, target: &Path, role: RoleInput) -> Result<LiveRole, BridgeError> {
         Python::initialize();
         Python::attach(|py| {
             let load_error = |error: PyErr| BridgeError::PythonTargetLoadFailure(error.to_string());
@@ -102,16 +106,22 @@ impl Bridge for PythonBridge {
                 }
                 let input = Py::new(py, PythonInput::from(role))
                     .map_err(|e| BridgeError::InputConversion(e.to_string()))?;
+                let live = py
+                    .import("roleforge._live")
+                    .and_then(|adapter| adapter.call_method1("_create_role", (&module, input)))
+                    .map_err(|e| BridgeError::InputConversion(e.to_string()))?;
                 receiver
-                    .call1((input,))
+                    .call1((&live,))
                     .map_err(|e| BridgeError::ReceiverRaised(e.to_string()))?;
-                Ok(())
+                Ok(live.unbind())
             })();
             let cleanup = match previous {
                 Some(previous) => modules.set_item(&name, previous),
                 None => modules.del_item(&name),
             };
-            result.and(cleanup.map_err(load_error))
+            let live = result?;
+            cleanup.map_err(load_error)?;
+            Ok(live)
         })
     }
 }
