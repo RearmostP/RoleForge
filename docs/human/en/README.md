@@ -48,10 +48,10 @@ Then build/install this checkout and run the example:
 
 ```sh
 python -m pip install -e .
-python -u anyone_py_project/main.py
+python -u external_test_project/main.py
 ```
 
-The [example](../../../anyone_py_project/main.py) locates its `.rfg` file beside the script. It does not import the Test Role manually. The [dynamic Registry](../../../roleforge/core/storage/dynamic_roles.json) already registers `Test` with `via: "python"` and `target: "Test/main.py"`.
+The [example](../../../external_test_project/main.py) locates its `.rfg` file beside the script. It does not import the Test Role manually. The [dynamic Registry](../../../roleforge/core/storage/dynamic_roles.json) already registers `Test` with `via: "python"` and `target: "Test/main.py"`.
 
 The receiver prints two instances: indexes `0/0` and `1/1`, declaration lines `1` and `5`, and bodies containing `hello = first` and `hello = second`. Temporary Core debug output is also printed. The example then calls `hello()` through implicit instance zero, explicit `[0]`, and `[1]`. No parser or `start()` is involved.
 
@@ -62,7 +62,7 @@ If `import roleforge` fails, use the same Python environment in which you instal
 ```python
 from roleforge import load
 
-project = load("anyone_py_project/test.rfg")  # From the repository root.
+project = load("external_test_project/test.rfg")  # From the repository root.
 for info in project.roles:
     print(info.name, info.index, info.role_index, info.status)
 ```
@@ -107,11 +107,13 @@ Registry storage and target bases are currently tied to the source tree via Rust
 
 ## Contributor checks and documentation
 
+[`external_test_project/`](../../../external_test_project/README.md) simulates a separate Python consumer of RoleForge. It contains public API tests, examples, and fixtures, and is not library runtime code. Internal Rust tests remain beside their subsystems in separate `tests.rs` files under `#[cfg(test)]`, preserving access to private Core APIs.
+
 After installing the checkout, run these sequentially from the root:
 
 ```sh
 cargo test
-python -m unittest discover -s anyone_py_project -v
+python -m unittest discover -s external_test_project -v
 ```
 
 The Python handoff tests temporarily replace source-tree Registry fixtures and restore their original bytes. Do not run them concurrently with other loads or tests using those files.

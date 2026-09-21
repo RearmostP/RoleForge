@@ -1,4 +1,5 @@
 /target/
+/anyone_py_project/
 .venv/
 __pycache__/
 /roleforge/*.pyd

@@ -97,7 +97,7 @@ print(project.test.hello())
 
 בדוגמה הזו `name` הוא `Test`, שני האינדקסים הם `0`, ו־`source.declaration_line` הוא `1`. עם סיומות שורה LF ושורה חדשה בסוף, הגוף הוא `'\nhello = world\nnumber = 123\n'`. מקור עם CRLF שומר על CRLF. השורה הריקה בתחילת הגוף היא חלק מהקלט, ו־Core אינו מפרש את ההשמות שבתוכו.
 
-נתיב יחסי שמועבר ל־`load()` מחושב ביחס לתיקיית העבודה של הקורא. זה כלל נפרד מפתרון יעדי Registry. [main.py שבפרויקט](../../../anyone_py_project/main.py) משתמש ב־`Path(__file__).with_name("test.rfg")` כדי למצוא את המקור שלצדו גם בהרצה מתיקייה אחרת.
+נתיב יחסי שמועבר ל־`load()` מחושב ביחס לתיקיית העבודה של הקורא. זה כלל נפרד מפתרון יעדי Registry. [main.py שבפרויקט](../../../external_test_project/main.py) משתמש ב־`Path(__file__).with_name("test.rfg")` כדי למצוא את המקור שלצדו גם בהרצה מתיקייה אחרת.
 
 ## 4. מכירים את RoleInput
 
@@ -129,7 +129,7 @@ Core קובע את האינדקסים בזמן הגילוי, גם ל־Roles לא
 
 ## 5. מוסרים כמה מופעים
 
-[test.rfg שבפרויקט](../../../anyone_py_project/test.rfg) מכיל:
+[test.rfg שבפרויקט](../../../external_test_project/test.rfg) מכיל:
 
 ```text
 @role Test

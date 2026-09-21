@@ -77,7 +77,7 @@ fn role(name: &str, index: usize, role_index: usize, line: usize, body: &str) ->
 #[test]
 fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let path = root.join("anyone_py_project/test_role.rfg");
+    let path = root.join("external_test_project/test_role.rfg");
     let registry = Registry::from_json(
         r#"{"Directory":{"entry":{"via":"python","target":"Directory/entry"}}}"#,
         r#"{"Config":{"entry":{"via":"python","target":"Config/entry"}}}"#,

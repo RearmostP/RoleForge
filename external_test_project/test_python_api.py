@@ -1,4 +1,4 @@
-"""Python-facing tests: python -m unittest discover -s anyone_py_project -v."""
+"""Python-facing tests: python -m unittest discover -s external_test_project -v."""
 from pathlib import Path
 import subprocess
 import sys

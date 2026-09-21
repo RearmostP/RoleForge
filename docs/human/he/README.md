@@ -50,10 +50,10 @@ python -m venv .venv
 
 ```sh
 python -m pip install -e .
-python -u anyone_py_project/main.py
+python -u external_test_project/main.py
 ```
 
-[הדוגמה](../../../anyone_py_project/main.py) מוצאת את קובץ ה־`.rfg` שלצדה ואינה מייבאת את ה־Role ידנית. [ה־Registry הדינמי](../../../roleforge/core/storage/dynamic_roles.json) כבר כולל את `Test`, עם `via: "python"` ו־`target: "Test/main.py"`.
+[הדוגמה](../../../external_test_project/main.py) מוצאת את קובץ ה־`.rfg` שלצדה ואינה מייבאת את ה־Role ידנית. [ה־Registry הדינמי](../../../roleforge/core/storage/dynamic_roles.json) כבר כולל את `Test`, עם `via: "python"` ו־`target: "Test/main.py"`.
 
 ה־receiver מדפיס שני מופעים: אינדקסים `0/0` ו־`1/1`, שורות הצהרה `1` ו־`5`, וגופים שמכילים `hello = first` ו־`hello = second`. מופיע גם פלט דיבוג זמני של Core. לאחר מכן הדוגמה קוראת ל־`hello()` דרך מופע אפס המשתמע, דרך `[0]` ודרך `[1]`. אין כאן parser או הפעלת `start()`.
 
@@ -64,7 +64,7 @@ python -u anyone_py_project/main.py
 ```python
 from roleforge import load
 
-project = load("anyone_py_project/test.rfg")  # From the repository root.
+project = load("external_test_project/test.rfg")  # From the repository root.
 for info in project.roles:
     print(info.name, info.index, info.role_index, info.status)
 ```
@@ -109,11 +109,13 @@ project.get_role("Test", 1).hello()  # Exact-name access.
 
 ## בדיקות ומסמכים לתורמים
 
+[`external_test_project/`](../../../external_test_project/README.md) מדמה פרויקט Python נפרד שצורך את RoleForge. הוא מכיל בדיקות API ציבורי, דוגמאות וקובצי בדיקה ואינו חלק מקוד הספרייה בזמן ריצה. בדיקות Rust הפנימיות נשארות לצד הרכיבים בקובצי `tests.rs` נפרדים תחת `#[cfg(test)]`, תוך שמירת הגישה לממשקי Core הפרטיים.
+
 לאחר התקנת עותק המקור, מריצים משורש הפרויקט, לפי הסדר:
 
 ```sh
 cargo test
-python -m unittest discover -s anyone_py_project -v
+python -m unittest discover -s external_test_project -v
 ```
 
 בדיקות המסירה ב־Python מחליפות זמנית את קובצי ה־Registry ומחזירות את הבתים המקוריים בסיום. אין להריץ אותן במקביל לטעינות או לבדיקות אחרות שמשתמשות באותם קבצים.

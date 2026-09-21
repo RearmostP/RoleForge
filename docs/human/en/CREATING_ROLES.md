@@ -97,7 +97,7 @@ Do not import the Role manually. `load()` reads the file, discovers `Test`, reso
 
 Here `name` is `Test`, both indexes are `0`, and `source.declaration_line` is `1`. With LF line endings and a final newline, the body is `'\nhello = world\nnumber = 123\n'`. CRLF source retains CRLF; the leading blank line is part of the body. Core does not interpret assignments in it.
 
-A relative path passed to `load()` is relative to the caller's working directory. That is separate from Registry target resolution. The repository's [main.py](../../../anyone_py_project/main.py) uses `Path(__file__).with_name("test.rfg")` so the example finds its own source from another working directory.
+A relative path passed to `load()` is relative to the caller's working directory. That is separate from Registry target resolution. The repository's [main.py](../../../external_test_project/main.py) uses `Path(__file__).with_name("test.rfg")` so the example finds its own source from another working directory.
 
 ## 4. Understand RoleInput
 
@@ -129,7 +129,7 @@ For this conceptual discovery example (it does not register these Roles):
 
 ## 5. Deliver multiple instances
 
-The repository's [test.rfg](../../../anyone_py_project/test.rfg) contains:
+The repository's [test.rfg](../../../external_test_project/test.rfg) contains:
 
 ```text
 @role Test

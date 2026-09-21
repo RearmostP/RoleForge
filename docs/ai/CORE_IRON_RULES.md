@@ -825,6 +825,8 @@ When an implementation task appears to require changing an Iron Rule, stop and i
 
 ## 30. Historical development stages
 
+Internal Rust unit tests live in separate subsystem-local `tests.rs` files, included only by `#[cfg(test)] mod tests;`. Preserve private and crate-internal access rather than exposing APIs for testing. `external_test_project/` simulates an external Python consumer and contains Python-facing tests, examples, and fixtures; it is not library runtime code.
+
 The currently completed Core development stages are recorded here for context:
 
 | Stage | Development scope |
@@ -838,6 +840,7 @@ The currently completed Core development stages are recorded here for context:
 | Stage 07 | Core Bridge abstraction and temporary placeholders |
 | Stage 08 | Neutral RoleInput and real Python receiving handoff |
 | Stage 09 | Live Python Role objects, Project access, and per-instance behavior/state |
+| Stage 10 | Separate Rust test files and rename the simulated external Python consumer |
 
 The Main Parser was intentionally removed from the Core architecture. It must not be restored by interpreting an old stage plan as an unfulfilled architectural requirement.
 
