@@ -24,7 +24,7 @@ class PythonApiTests(unittest.TestCase):
              ("Config", 1, 0, f"debug = true{newline}{newline}", 5),
              ("Directory", 2, 1, "assets/", 8)],
         )
-        # Stored registries are currently empty; discovery still succeeds.
+        # Directory and Config are unregistered; discovery still succeeds.
         for role in project.roles:
             self.assertEqual(role.status, "unknown")
             self.assertIsNone(role.entry)
@@ -67,16 +67,38 @@ class PythonApiTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 load(path)
 
-    def test_example_runs_from_another_working_directory_and_reports_unknown_roles(self):
-        script = Path(__file__).with_name("main.py").resolve()
+    def test_unregistered_project_loads_from_another_working_directory(self):
+        source = Path(__file__).with_name("test_role.rfg").resolve()
         with tempfile.TemporaryDirectory() as directory:
-            result = subprocess.run([sys.executable, str(script)], cwd=directory,
+            result = subprocess.run([sys.executable, "-c",
+                                     "import sys; from roleforge import load; "
+                                     "project = load(sys.argv[1]); "
+                                     "print(f'Loaded {len(project.roles)} Roles')", str(source)], cwd=directory,
                                     capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout.count("Unknown Role: Directory"), 2)
         self.assertEqual(result.stdout.count("Unknown Role: Config"), 1)
         self.assertNotIn("[CORE DEBUG]", result.stdout)
         self.assertIn("Loaded 3 Roles", result.stdout)
         self.assertNotIn("[HANDOFF]", result.stdout)
+
+    def test_manual_example_delivers_both_instances_from_another_working_directory(self):
+        script = Path(__file__).with_name("main.py").resolve()
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, "-u", str(script)], cwd=directory,
+                                    capture_output=True, text=True, check=True)
+        output = result.stdout
+        self.assertEqual(output.count("=== ROLEFORGE TEST ROLE ==="), 2)
+        self.assertEqual(output.count("Role received successfully!"), 2)
+        source = script.with_name("test.rfg").read_bytes().decode("utf-8")
+        bodies = source.split("@role Test")[1:]
+        for index, (body, line) in enumerate(zip(bodies, (1, 5))):
+            # The declaration's newline is outside the Role body.
+            body = body[2:] if body.startswith("\r\n") else body[1:]
+            self.assertIn(f"name: Test\nglobal index: {index}\nrole index: {index}\n"
+                          f"body: {body!r}\ndeclaration line: {line}", output)
+        self.assertLess(output.index("global index: 0"), output.index("global index: 1"))
+        self.assertIn("Loaded 2 Roles", output)
+        self.assertNotIn("Unknown Role:", output)
 
 
 if __name__ == "__main__":

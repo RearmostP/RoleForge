@@ -5,5 +5,5 @@ from roleforge import load
 
 
 if __name__ == "__main__":
-    project = load(Path(__file__).with_name("test_role.rfg"))
+    project = load(Path(__file__).with_name("test.rfg"))
     print(f"Loaded {len(project.roles)} Roles from {project.path}")

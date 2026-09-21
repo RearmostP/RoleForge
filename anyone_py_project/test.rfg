@@ -1,0 +1,7 @@
+@role Test
+
+hello = first
+
+@role Test
+
+hello = second

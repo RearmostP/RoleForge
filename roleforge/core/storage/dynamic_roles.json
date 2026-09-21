@@ -1,1 +1,8 @@
-{}
+{
+  "Test": {
+    "entry": {
+      "via": "python",
+      "target": "Test/main.py"
+    }
+  }
+}
