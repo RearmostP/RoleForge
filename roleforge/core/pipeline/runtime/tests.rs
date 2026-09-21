@@ -1,4 +1,24 @@
 use super::*;
+use crate::core::{
+    bridges::{Bridge, BridgeError},
+    registry::RoleEntry,
+    role_input::RoleInput,
+};
+fn run_file(
+    path: impl AsRef<Path>,
+    registry: &Registry,
+    output: &mut impl io::Write,
+) -> Result<Vec<DispatchResult>, RuntimeError> {
+    struct Probe;
+    impl Bridge for Probe {
+        fn deliver(&self, _: &Path, _: RoleInput) -> Result<(), BridgeError> {
+            Ok(())
+        }
+    }
+    let mut bridges = Bridges::default();
+    bridges.register("python", Probe);
+    run_file_with_bridges(path, registry, &bridges, output)
+}
 use crate::core::pipeline::models::{CleanRole, SourceInfo};
 use std::{
     fs,
@@ -58,8 +78,8 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let path = root.join("anyone_py_project/test_role.rfg");
     let registry = Registry::from_json(
-        r#"{"Directory":{"entry":"Directory/entry"}}"#,
-        r#"{"Config":{"entry":"Config/entry"}}"#,
+        r#"{"Directory":{"entry":{"via":"python","target":"Directory/entry"}}}"#,
+        r#"{"Config":{"entry":{"via":"python","target":"Config/entry"}}}"#,
     )
     .unwrap();
     let mut output = Vec::new();
@@ -85,7 +105,10 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
                     1,
                     &format!("src/{newline}tests/{newline}{newline}")
                 ),
-                entry: directory.clone(),
+                entry: RoleEntry {
+                    via: "python".into(),
+                    target: directory.clone()
+                },
             },
             DispatchResult::Resolved {
                 role: role(
@@ -95,11 +118,17 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
                     5,
                     &format!("debug = true{newline}{newline}")
                 ),
-                entry: config,
+                entry: RoleEntry {
+                    via: "python".into(),
+                    target: config
+                },
             },
             DispatchResult::Resolved {
                 role: role("Directory", 2, 1, 8, "assets/"),
-                entry: directory,
+                entry: RoleEntry {
+                    via: "python".into(),
+                    target: directory
+                },
             },
         ]
     );
@@ -119,7 +148,7 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
             role.role_index,
             role.source.declaration_line,
             role.body,
-            entry.display()
+            entry.target.display()
         )));
     }
 }
@@ -130,8 +159,8 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
         b"@role Missing\nunknown\n@role Shared\nconflict\n@role Last\nfirst\n@role Last\nsecond",
     );
     let registry = Registry::from_json(
-        r#"{"Shared":{"entry":"shared/builtin"}}"#,
-        r#"{"Shared":{"entry":"shared/dynamic"},"Last":{"entry":"last/entry"}}"#,
+        r#"{"Shared":{"entry":{"via":"python","target":"shared/builtin"}}}"#,
+        r#"{"Shared":{"entry":{"via":"python","target":"shared/dynamic"}},"Last":{"entry":{"via":"python","target":"last/entry"}}}"#,
     )
     .unwrap();
     let mut output = Vec::new();
@@ -145,16 +174,28 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
             },
             DispatchResult::Conflict {
                 role: role("Shared", 1, 0, 3, "conflict\n"),
-                builtin_entry: root.join("builtin_roles/shared/builtin"),
-                dynamic_entry: root.join("roles/shared/dynamic"),
+                builtin_entry: RoleEntry {
+                    via: "python".into(),
+                    target: root.join("builtin_roles/shared/builtin")
+                },
+                dynamic_entry: RoleEntry {
+                    via: "python".into(),
+                    target: root.join("roles/shared/dynamic")
+                },
             },
             DispatchResult::Resolved {
                 role: role("Last", 2, 0, 5, "first\n"),
-                entry: root.join("roles/last/entry"),
+                entry: RoleEntry {
+                    via: "python".into(),
+                    target: root.join("roles/last/entry")
+                },
             },
             DispatchResult::Resolved {
                 role: role("Last", 3, 1, 7, "second"),
-                entry: root.join("roles/last/entry"),
+                entry: RoleEntry {
+                    via: "python".into(),
+                    target: root.join("roles/last/entry")
+                },
             },
         ]
     );
@@ -216,7 +257,11 @@ fn load_failures_preserve_io_errors_without_debug_output() {
 
 #[test]
 fn tokenizer_failure_stops_before_any_debug_output() {
-    let registry = Registry::from_json(r#"{"Valid":{"entry":"valid"}}"#, "{}").unwrap();
+    let registry = Registry::from_json(
+        r#"{"Valid":{"entry":{"via":"python","target":"valid"}}}"#,
+        "{}",
+    )
+    .unwrap();
     let fixture = TestFile::new(b"@role Valid\nbody\n@role\n");
     let mut output = Vec::new();
     assert!(matches!(
@@ -239,7 +284,11 @@ fn temporary_output_failure_is_returned() {
             Ok(())
         }
     }
-    let registry = Registry::from_json(r#"{"Valid":{"entry":"valid"}}"#, "{}").unwrap();
+    let registry = Registry::from_json(
+        r#"{"Valid":{"entry":{"via":"python","target":"valid"}}}"#,
+        "{}",
+    )
+    .unwrap();
     let fixture = TestFile::new(b"@role Valid\nbody");
     assert!(
         matches!(run_file(&fixture.0, &registry, &mut BrokenOutput), Err(RuntimeError::DebugOutput(error)) if error.kind() == io::ErrorKind::BrokenPipe)

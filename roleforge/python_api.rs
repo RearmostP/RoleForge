@@ -1,7 +1,11 @@
-// The Python boundary adapts Core results; it never processes Role source or executes Roles.
+// The public Python boundary adapts Core results; receiving calls belong to Bridges.
 use std::{io, path::PathBuf};
 
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyTuple};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyValueError},
+    prelude::*,
+    types::PyTuple,
+};
 
 use crate::core::{
     pipeline::{
@@ -29,7 +33,9 @@ struct RoleInfo {
 impl From<DispatchResult> for RoleInfo {
     fn from(result: DispatchResult) -> Self {
         let (role, status, entry, builtin_entry, dynamic_entry) = match result {
-            DispatchResult::Resolved { role, entry } => (role, "resolved", Some(entry), None, None),
+            DispatchResult::Resolved { role, entry } => {
+                (role, "resolved", Some(entry.target), None, None)
+            }
             DispatchResult::Unknown { role } => (role, "unknown", None, None, None),
             DispatchResult::Conflict {
                 role,
@@ -39,8 +45,8 @@ impl From<DispatchResult> for RoleInfo {
                 role,
                 "conflict",
                 None,
-                Some(builtin_entry),
-                Some(dynamic_entry),
+                Some(builtin_entry.target),
+                Some(dynamic_entry.target),
             ),
         };
         Self {
@@ -65,13 +71,29 @@ struct Project {
     roles: Py<PyTuple>,
 }
 
-/// Run the Rust Core and return its discovered Roles, without executing them.
+/// Discover Roles and deliver resolved instances; never automatically call start().
 #[pyfunction]
 fn load(py: Python<'_>, path: PathBuf) -> PyResult<Project> {
     let registry = Registry::load()?;
     let results =
         run_file(&path, &registry, &mut io::stdout().lock()).map_err(|error| match error {
             RuntimeError::Load(error) | RuntimeError::DebugOutput(error) => PyErr::from(error),
+            RuntimeError::Handoff {
+                name,
+                index,
+                target,
+                error,
+            } => {
+                use crate::core::pipeline::handoff::HandoffError;
+                let detail = match error {
+                    HandoffError::UnknownBridge(via) => format!("UnknownBridge: {via}"),
+                    HandoffError::Delivery(error) => format!("{error:?}"),
+                };
+                PyRuntimeError::new_err(format!(
+                    "Role {name} (index {index}), {}: {detail}",
+                    target.display()
+                ))
+            }
             RuntimeError::Tokenize(error) => {
                 let (line, message) = match error {
                     TokenizeError::MissingRoleName { line } => (line, "missing Role name"),

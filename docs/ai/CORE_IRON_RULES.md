@@ -399,7 +399,7 @@ runtime_type = "native"
 
 Core resolves a Role name to its registered destination. It does not choose a Role's implementation strategy or infer identity from the language used at that destination.
 
-This principle does not define a cross-language execution system. Stage 07 establishes the Core Bridge abstraction described in section 17.1. The concrete receiving protocols, target interpretation, and physical delivery remain undecided; Bridge selection must not be mistaken for Role execution.
+This principle does not define a general cross-language execution system. Stage 08 implements Python delivery through the Core Bridge abstraction (section 17.1). Rust receiving/loading/ABI rules remain undecided. Bridge resolution alone is not successful delivery.
 
 ## 13. Registry responsibility
 
@@ -410,7 +410,7 @@ There are currently two registry sources:
 - Built-in Roles.
 - Dynamic Roles.
 
-Built-in and dynamic registrations remain separate concepts. Current minimal registration metadata consists of the Role name and entry destination. Do not add language, type, or runtime metadata merely for routing.
+Built-in and dynamic registrations remain separate concepts. Current registration metadata consists of the Role name and structured `entry { via, target }`. `via` is an opaque Bridge registration identifier; `target` supplies its destination. Do not add language, type, or runtime metadata merely for routing.
 
 The Registry must not:
 
@@ -424,7 +424,7 @@ Resolution information can support later delivery and diagnostics without giving
 
 ## 14. Registry path resolution
 
-Relative built-in Role destinations are resolved relative to the built-in Role location. Relative dynamic Role destinations are resolved relative to the dynamic Role location. Absolute paths remain absolute.
+Relative built-in `entry.target` destinations are resolved relative to the built-in Role location. Relative dynamic `entry.target` destinations are resolved relative to the dynamic Role location. Absolute paths remain absolute.
 
 Resolution must not accidentally depend on the process's Python or Rust current working directory. Changing the caller's working directory must not silently change which base a registry-relative destination uses.
 
@@ -489,7 +489,7 @@ The Dispatcher is not a Role Runtime. It must not:
 - Decide whether a Role tokenizes, parses, validates, or executes.
 - Decide how a Role internally continues after handoff.
 
-Producing a resolved routing result is conceptually distinct from choosing a physical handoff protocol. The latter remains undecided.
+Resolved routing results carry the original discovered data and `RoleEntry { via, target }`. Dispatcher does not execute Bridges; Runtime orchestrates delivery through Handoff.
 
 ## 17. Handoff boundary
 
@@ -509,39 +509,37 @@ Role-specific world
 
 After this boundary, Core does not orchestrate the Role's internal processing. The Role may tokenize, parse, validate, execute, expose API state, defer work, or do nothing. Core does not need to know which path it chooses.
 
-The architectural decision is the responsibility boundary. The physical handoff mechanism is not yet decided.
+### 17.1 Core Bridges and the Stage 08 handoff contract
 
-Do not invent any of the following without a later explicit design decision:
+> Every Role receives one common logical RoleInput contract from the Core.
 
-- ABI or FFI protocol.
-- Python Role loading and receiving protocol beyond the approved Core Bridge abstraction.
-- Rust plugin ABI.
-- Process model.
-- Dynamic library protocol.
-- Serialization protocol.
-- Callback system.
+`CleanRole` remains tokenizer/discovery data. At the Handoff boundary, it is explicitly converted into environment-neutral `RoleInput`, containing `name`, `index`, `role_index`, `body`, and nested `source.declaration_line`. No indexes are recalculated. The currently returned Project metadata retains its own discovery data; the owned input can be retained by the receiver.
 
-A conceptual handoff arrow must not be treated as approval for one of these mechanisms.
+> Bridges adapt the same logical RoleInput contract to their destination environments.
 
-### 17.1 Core Bridges — established in Stage 07
+Bridges belong to the Rust Core. Core models do not contain PyO3 objects. Python receives a frozen object with the same fields and a frozen nested source object.
 
-> Bridges are Core components and are implemented in Rust.
+> Every Role implementation must expose a receiving entry point compatible with its Bridge.
 
-Both the Python Bridge and the Rust Bridge live inside the Rust Core. Their names describe the destinations they are intended to communicate with, not the implementation language of the Bridges themselves. They share one internal Bridge contract using the existing neutral Role data. Do not introduce another indexing or metadata system.
+For Python, the mandatory callable is `roleforge_receive(role)`. No alternate name is tried. This is the RoleForge receiving entry point, separate from `start()` and Role-specific APIs. Successful synchronous completion counts as delivery; return values have no protocol meaning. Core responsibility ends at successful receipt. Core never automatically invokes `start()`.
 
-> A Bridge identifier selects a registered Bridge; it is not a programming-language type.
+> Bridge identifiers are opaque registration identifiers, not programming-language declarations.
 
-Generic resolution uses explicit registration and exact identifier lookup. The built-in identifiers are `python` and `rust`, but identifiers have no intrinsic language meaning. An unknown identifier remains unknown; it must not silently select a default Bridge.
+Registry entries have this shape:
 
-> Environment-specific delivery behavior belongs to the Bridge, not to generic Handoff logic.
+```json
+{"Directory": {"entry": {"via": "python", "target": "directory/main.py"}}}
+```
 
-> The Handoff must not infer implementation language from Role names, source, targets, or file extensions.
+Generic Handoff resolves `via` exactly and supplies the resolved target and RoleInput to that Bridge. It never inspects file extensions or selects a fallback. Registry retains the established path-base resolution for file targets; Python Bridge interprets and loads the resulting file. Final non-file target and packaging rules remain undefined.
 
-> Adding a new Bridge should not require teaching generic Handoff logic about a new programming language.
+Python is currently the first and only real built-in delivery Bridge. The temporary Rust Bridge was removed; `rust` is not registered. Future Rust receiving/loading/ABI mechanisms are intentionally undecided.
 
-Stage 07 implements independently testable Bridge registration, resolution, and common interfaces. The built-in Bridges explicitly report that delivery is unavailable. Resolving a Bridge successfully does not mean that a Role was delivered or executed. The current opaque target argument is not a finalized destination format or Role ABI.
+The Python Bridge uses the existing PyO3 integration and explicit file loading. Full canonical paths produce distinct module names, without import searches or sys.path changes. Each handoff loads fresh source; there is no persistent module cache. The temporary sys.modules binding is restored after the call. Package discovery, process isolation, async execution, serialization, and other environments are not implemented.
 
-The current Role Registry still stores string entries and the Dispatcher still produces resolved paths. Stage 07 does not connect Bridges to Runtime or select a default Bridge. Planned Registry selection through `via` and `target`, its exact entry format, and Handoff integration belong to Stage 08. Concrete Python receiving conventions, Rust loading/ABI rules, and actual `start()` invocation remain unimplemented and require explicit decisions.
+Target load failures, missing receivers, non-callable receivers, and receiver exceptions remain distinct structured failures. Unknown Bridge resolution is an explicit Handoff error. The public Python API raises RuntimeError with Role identity, target and failure category. Delivery stops on the first delivery failure; previous successful calls are not rolled back. This is current behavior, not a final Error Manager policy.
+
+Before any target is loaded, Runtime inspects the entire dispatch collection. Any Conflict reports all conflicts and aborts every delivery for that load. Otherwise Unknown Roles are reported and skipped, and resolved Roles are delivered in source order. This remains the temporary Stage 06 reporting policy.
 
 ## 18. Core Runtime and orchestration
 
@@ -574,7 +572,7 @@ Internal helper calls within a component are allowed. This rule governs major ar
 
 > Core Runtime orchestrates the Core pipeline, never Role behavior.
 
-Core Runtime may coordinate the pipeline until Role delivery/handoff. It must not control the Role's internal lifecycle afterward. This orchestration principle does not decide which future component physically implements an as-yet-undesigned handoff mechanism.
+Core Runtime may coordinate the pipeline until Role delivery/handoff. It must not control the Role's internal lifecycle afterward. Runtime calls generic Handoff; environment-specific delivery belongs inside the selected Bridge.
 
 ## 19. Clear component boundaries and meaningful structures
 
@@ -674,7 +672,7 @@ There should be one underlying Core operation, with convenience interfaces aroun
 
 Convenience interfaces must preserve source-driven discovery and the same architectural boundaries. They must not become competing semantic pipelines that infer Role identity differently.
 
-The final Python API syntax and final Project object model are not fully finalized. Public API examples in this document are conceptual unless explicitly identified as contractual. The philosophy does not fix method names, loading syntax, wrapper types, or how Role-specific APIs attach to the loaded result.
+The current Python API provides `load(path)`, returning a read-only Project and discovered Role metadata. Stage 08 load performs receiving handoff for resolved Python Roles. Dynamic attributes such as `project.directory` are not implemented. The final Python API syntax and final Project object model are not fully finalized. Public API examples in this document are conceptual unless explicitly identified as contractual. The philosophy does not fix method names, loading syntax, wrapper types, or how Role-specific APIs attach to the loaded result.
 
 ## 24. Multiple instances of the same Role
 
@@ -830,6 +828,11 @@ The currently completed Core development stages are recorded here for context:
 | Stage 01 | File Loader |
 | Stage 02 | Main Tokenizer |
 | Stage 03 | Role Registry and Dispatcher |
+| Stage 04 | Core Runtime |
+| Stage 05 | First Python API |
+| Stage 06 | Complete conflict preflight |
+| Stage 07 | Core Bridge abstraction and temporary placeholders |
+| Stage 08 | Neutral RoleInput and real Python receiving handoff |
 
 The Main Parser was intentionally removed from the Core architecture. It must not be restored by interpreting an old stage plan as an unfulfilled architectural requirement.
 
@@ -843,10 +846,8 @@ Small corrections to a completed stage do not automatically create a new numbere
 
 | Undecided area | Boundary that must be preserved meanwhile |
 | --- | --- |
-| Physical Role handoff mechanism | Core resolves and delivers; Role controls subsequent behavior. No ABI, callback, serialization, or process protocol is implied. |
 | Cross-language execution mechanism | Implementation language is not part of Role identity or resolution. |
-| Concrete Python/Rust Role delivery protocols | The Core Bridge abstraction is established in section 17.1; target interpretation, Python receiving conventions, and Rust ABI/loading rules remain undecided. |
-| Registry-to-Bridge integration | Stage 08 will connect explicit Bridge identifiers and targets to Handoff. Do not migrate the Role Registry or invent target semantics in Stage 07. |
+| Rust and other future Role delivery protocols | Python file delivery and roleforge_receive(role) are established; Rust ABI/loading/receiving rules remain undecided. |
 | Final Project/Public API object model | Keep the conceptual engine/loaded-result/Role distinction and source-driven discovery. |
 | Single-instance shorthand behavior | Do not assign meaning to unindexed access for one, multiple, or zero instances. |
 | Named Role instance / alias system | The idea is not an approved feature. |
@@ -897,3 +898,7 @@ This is a quick pre-modification checklist for AI coding agents. It does not rep
 28. Bridges belong to the Rust Core and share a common contract using neutral Role data.
 29. Bridge identifiers select registrations; generic Handoff must not infer implementation language.
 30. Environment-specific delivery belongs inside Bridges; resolution is not delivery or execution.
+
+31. Every Role receives the common environment-neutral RoleInput contract.
+32. Python receipt requires roleforge_receive(role); it does not automatically call start().
+33. Conflict preflight completes before any delivery or target import.

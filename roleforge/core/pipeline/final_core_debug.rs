@@ -15,7 +15,7 @@ pub(super) fn inspect(result: &DispatchResult, output: &mut impl Write) -> io::R
             role.role_index,
             role.source.declaration_line,
             role.body,
-            entry.display()
+            entry.target.display()
         ),
         DispatchResult::Unknown { role } => {
             writeln!(output, "[RoleForge] Unknown Role: {}", role.name)
@@ -28,8 +28,8 @@ pub(super) fn inspect(result: &DispatchResult, output: &mut impl Write) -> io::R
             output,
             "[RoleForge] Role conflict: {}\nBuiltin entry: {}\nDynamic entry: {}",
             role.name,
-            builtin_entry.display(),
-            dynamic_entry.display()
+            builtin_entry.target.display(),
+            dynamic_entry.target.display()
         ),
     }
 }

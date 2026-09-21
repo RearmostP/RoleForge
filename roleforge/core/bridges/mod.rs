@@ -1,24 +1,24 @@
 // Input: Explicit Bridge identifiers, opaque targets, and existing Core Role data.
-// Output: A selected Bridge, or an explicit unavailable-delivery result in Stage 07.
+// Output: Explicit Bridge resolution and structured delivery failures.
 
 use std::collections::HashMap;
 
-use crate::core::pipeline::models::CleanRole;
+use crate::core::role_input::RoleInput;
+use std::path::Path;
 
 mod python;
-mod rust;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum BridgeError {
-    // Identifies the implementation, not a language inferred from the target.
-    DeliveryUnavailable { bridge: &'static str },
+    PythonTargetLoadFailure(String),
+    MissingReceiver,
+    ReceiverNotCallable,
+    ReceiverRaised(String),
+    InputConversion(String),
 }
 
 pub(crate) trait Bridge {
-    // target is opaque here. Its interpretation and the receiving protocol await
-    // Stage 08; this signature does not define a Registry entry, path, or ABI.
-    // Borrow the original neutral data without rebuilding metadata or indexes.
-    fn deliver(&self, target: &str, role: &CleanRole) -> Result<(), BridgeError>;
+    fn deliver(&self, target: &Path, role: RoleInput) -> Result<(), BridgeError>;
 }
 
 #[derive(Default)]
@@ -30,7 +30,6 @@ impl Bridges {
     pub(crate) fn with_builtins() -> Self {
         let mut bridges = Self::default();
         bridges.register("python", python::PythonBridge);
-        bridges.register("rust", rust::RustBridge);
         bridges
     }
 

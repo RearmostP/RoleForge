@@ -4,3 +4,5 @@
 pub(crate) mod bridges;
 pub(crate) mod pipeline;
 pub(crate) mod registry;
+
+pub(crate) mod role_input;

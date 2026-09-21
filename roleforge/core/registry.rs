@@ -1,5 +1,5 @@
 // Input: Separate built-in and dynamic Role registry JSON files.
-// Output: Resolved entry paths, unknown names, or structured registration conflicts.
+// Output: Structured Bridge entries with resolved targets, unknown names, or structured registration conflicts.
 
 use std::{
     collections::HashMap,
@@ -11,22 +11,28 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct Entry {
-    entry: String,
+    entry: RoleEntry,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub(crate) struct RoleEntry {
+    pub(crate) via: String,
+    pub(crate) target: PathBuf,
 }
 
 pub(crate) struct Registry {
-    builtin: HashMap<String, PathBuf>,
-    dynamic: HashMap<String, PathBuf>,
+    builtin: HashMap<String, RoleEntry>,
+    dynamic: HashMap<String, RoleEntry>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum LookupResult<'a> {
-    Resolved(&'a Path),
+    Resolved(&'a RoleEntry),
     Unknown,
     Conflict {
         name: &'a str,
-        builtin_entry: &'a Path,
-        dynamic_entry: &'a Path,
+        builtin_entry: &'a RoleEntry,
+        dynamic_entry: &'a RoleEntry,
     },
 }
 
@@ -66,19 +72,25 @@ fn roleforge_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge")
 }
 
-fn parse_entries(json: &str, base: &Path) -> io::Result<HashMap<String, PathBuf>> {
+fn parse_entries(json: &str, base: &Path) -> io::Result<HashMap<String, RoleEntry>> {
     let entries: HashMap<String, Entry> = serde_json::from_str(json)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     Ok(entries
         .into_iter()
         .map(|(name, entry)| {
-            let path = PathBuf::from(entry.entry);
+            let path = entry.entry.target;
             let resolved = if path.is_absolute() {
                 path
             } else {
                 base.join(path)
             };
-            (name, resolved)
+            (
+                name,
+                RoleEntry {
+                    via: entry.entry.via,
+                    target: resolved,
+                },
+            )
         })
         .collect())
 }
@@ -90,19 +102,25 @@ mod tests {
     #[test]
     fn relative_entries_use_separate_absolute_default_directories() {
         let registry = Registry::from_json(
-            r#"{"Builtin":{"entry":"Builtin/entry"}}"#,
-            r#"{"Dynamic":{"entry":"Dynamic/entry"}}"#,
+            r#"{"Builtin":{"entry":{"via":"python","target":"Builtin/entry"}}}"#,
+            r#"{"Dynamic":{"entry":{"via":"python","target":"Dynamic/entry"}}}"#,
         )
         .unwrap();
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge");
         assert!(root.is_absolute());
         assert_eq!(
             registry.get_entry("Builtin"),
-            LookupResult::Resolved(root.join("builtin_roles/Builtin/entry").as_path())
+            LookupResult::Resolved(&RoleEntry {
+                via: "python".into(),
+                target: root.join("builtin_roles/Builtin/entry")
+            })
         );
         assert_eq!(
             registry.get_entry("Dynamic"),
-            LookupResult::Resolved(root.join("roles/Dynamic/entry").as_path())
+            LookupResult::Resolved(&RoleEntry {
+                via: "python".into(),
+                target: root.join("roles/Dynamic/entry")
+            })
         );
         assert_eq!(registry.get_entry("Missing"), LookupResult::Unknown);
     }
@@ -111,14 +129,18 @@ mod tests {
     fn absolute_entries_are_used_unchanged_in_both_registries() {
         let path = std::env::temp_dir().join("external-role/entry");
         assert!(path.is_absolute());
-        let json = serde_json::json!({"External": {"entry": path.to_str().unwrap()}}).to_string();
+        let json = serde_json::json!({"External": {"entry": {"via": "python", "target": path}}})
+            .to_string();
         for registry in [
             Registry::from_json(&json, "{}"),
             Registry::from_json("{}", &json),
         ] {
             assert_eq!(
                 registry.unwrap().get_entry("External"),
-                LookupResult::Resolved(path.as_path())
+                LookupResult::Resolved(&RoleEntry {
+                    via: "python".into(),
+                    target: path.clone()
+                })
             );
         }
     }
@@ -126,25 +148,37 @@ mod tests {
     #[test]
     fn cross_registry_name_collision_preserves_name_and_both_resolved_entries() {
         let registry = Registry::from_json(
-            r#"{"Same":{"entry":"builtin/entry"}}"#,
-            r#"{"Same":{"entry":"dynamic/entry"}}"#,
+            r#"{"Same":{"entry":{"via":"python","target":"builtin/entry"}}}"#,
+            r#"{"Same":{"entry":{"via":"python","target":"dynamic/entry"}}}"#,
         )
         .unwrap();
         assert_eq!(
             registry.get_entry("Same"),
             LookupResult::Conflict {
                 name: "Same",
-                builtin_entry: roleforge_root()
-                    .join("builtin_roles/builtin/entry")
-                    .as_path(),
-                dynamic_entry: roleforge_root().join("roles/dynamic/entry").as_path(),
+                builtin_entry: &RoleEntry {
+                    via: "python".into(),
+                    target: roleforge_root().join("builtin_roles/builtin/entry")
+                },
+                dynamic_entry: &RoleEntry {
+                    via: "python".into(),
+                    target: roleforge_root().join("roles/dynamic/entry")
+                },
             }
         );
     }
 
     #[test]
     fn malformed_metadata_returns_invalid_data() {
-        for json in ["{", r#"{"Role":{}}"#, r#"{"Role":{"entry":42}}"#] {
+        for json in [
+            "{",
+            r#"{"Role":{}}"#,
+            r#"{"Role":{"entry":42}}"#,
+            r#"{"Role":{"entry":"legacy/path"}}"#,
+            r#"{"Role":{"entry":{"target":"main.py"}}}"#,
+            r#"{"Role":{"entry":{"via":"python"}}}"#,
+            r#"{"Role":{"entry":{"via":123,"target":"main.py"}}}"#,
+        ] {
             for result in [
                 Registry::from_json(json, "{}"),
                 Registry::from_json("{}", json),

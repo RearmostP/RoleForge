@@ -1,24 +1,25 @@
 // Input: Ordered clean Roles and a loaded Role registry.
 // Output: Ordered resolved, unknown, or conflicting Roles, without execution.
 
+#[cfg(test)]
 use std::path::PathBuf;
 
 use super::models::CleanRole;
-use crate::core::registry::{LookupResult, Registry};
+use crate::core::registry::{LookupResult, Registry, RoleEntry};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum DispatchResult {
     Resolved {
         role: CleanRole,
-        entry: PathBuf,
+        entry: RoleEntry,
     },
     Unknown {
         role: CleanRole,
     },
     Conflict {
         role: CleanRole,
-        builtin_entry: PathBuf,
-        dynamic_entry: PathBuf,
+        builtin_entry: RoleEntry,
+        dynamic_entry: RoleEntry,
     },
 }
 
@@ -28,7 +29,7 @@ pub(crate) fn dispatch(roles: Vec<CleanRole>, registry: &Registry) -> Vec<Dispat
         .map(|role| match registry.get_entry(&role.name) {
             LookupResult::Resolved(entry) => DispatchResult::Resolved {
                 role,
-                entry: entry.to_path_buf(),
+                entry: entry.clone(),
             },
             LookupResult::Unknown => DispatchResult::Unknown { role },
             LookupResult::Conflict {
@@ -36,8 +37,8 @@ pub(crate) fn dispatch(roles: Vec<CleanRole>, registry: &Registry) -> Vec<Dispat
                 dynamic_entry,
                 ..
             } => {
-                let builtin_entry = builtin_entry.to_path_buf();
-                let dynamic_entry = dynamic_entry.to_path_buf();
+                let builtin_entry = builtin_entry.clone();
+                let dynamic_entry = dynamic_entry.clone();
                 DispatchResult::Conflict {
                     role,
                     builtin_entry,
@@ -56,8 +57,8 @@ mod tests {
     #[test]
     fn routes_in_source_order_and_continues_after_unknown_with_context() {
         let registry = Registry::from_json(
-            r#"{"Zebra":{"entry":"Zebra/entry"}}"#,
-            r#"{"Alpha":{"entry":"Alpha/entry"}}"#,
+            r#"{"Zebra":{"entry":{"via":"python","target":"Zebra/entry"}}}"#,
+            r#"{"Alpha":{"entry":{"via":"python","target":"Alpha/entry"}}}"#,
         )
         .unwrap();
         let file = LoadedFile {
@@ -72,16 +73,22 @@ mod tests {
             vec![
                 DispatchResult::Resolved {
                     role: expected_roles.next().unwrap(),
-                    entry: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("roleforge/builtin_roles/Zebra/entry"),
+                    entry: RoleEntry {
+                        via: "python".into(),
+                        target: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("roleforge/builtin_roles/Zebra/entry")
+                    },
                 },
                 DispatchResult::Unknown {
                     role: expected_roles.next().unwrap()
                 },
                 DispatchResult::Resolved {
                     role: expected_roles.next().unwrap(),
-                    entry: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("roleforge/roles/Alpha/entry"),
+                    entry: RoleEntry {
+                        via: "python".into(),
+                        target: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("roleforge/roles/Alpha/entry")
+                    },
                 },
             ]
         );
@@ -96,8 +103,8 @@ mod tests {
     #[test]
     fn conflict_preserves_role_and_both_entries_and_continues_in_order() {
         let registry = Registry::from_json(
-            r#"{"First":{"entry":"First/entry"},"Directory":{"entry":"Directory/entry"}}"#,
-            r#"{"Directory":{"entry":"MyDirectory/entry"},"Last":{"entry":"Last/entry"}}"#,
+            r#"{"First":{"entry":{"via":"python","target":"First/entry"}},"Directory":{"entry":{"via":"python","target":"Directory/entry"}}}"#,
+            r#"{"Directory":{"entry":{"via":"python","target":"MyDirectory/entry"}},"Last":{"entry":{"via":"python","target":"Last/entry"}}}"#,
         )
         .unwrap();
         let file = LoadedFile {
@@ -115,16 +122,28 @@ mod tests {
             vec![
                 DispatchResult::Resolved {
                     role: expected.next().unwrap(),
-                    entry: root.join("builtin_roles/First/entry"),
+                    entry: RoleEntry {
+                        via: "python".into(),
+                        target: root.join("builtin_roles/First/entry")
+                    },
                 },
                 DispatchResult::Conflict {
                     role: expected.next().unwrap(),
-                    builtin_entry: root.join("builtin_roles/Directory/entry"),
-                    dynamic_entry: root.join("roles/MyDirectory/entry"),
+                    builtin_entry: RoleEntry {
+                        via: "python".into(),
+                        target: root.join("builtin_roles/Directory/entry")
+                    },
+                    dynamic_entry: RoleEntry {
+                        via: "python".into(),
+                        target: root.join("roles/MyDirectory/entry")
+                    },
                 },
                 DispatchResult::Resolved {
                     role: expected.next().unwrap(),
-                    entry: root.join("roles/Last/entry"),
+                    entry: RoleEntry {
+                        via: "python".into(),
+                        target: root.join("roles/Last/entry")
+                    },
                 },
             ]
         );

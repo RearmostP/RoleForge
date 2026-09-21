@@ -1,19 +1,26 @@
 // Input: A source path, an already loaded registry, and temporary development output.
-// Output: Ordered final Core results before real handoff, or a pipeline error.
+// Output: Ordered Core results after receiving handoff, or a pipeline error.
 
 use std::{io, path::Path};
 
+use super::handoff::{self, HandoffError};
 use super::{
     dispatcher::{DispatchResult, dispatch},
     final_core_debug,
     loader::load_file,
     tokenizer::{TokenizeError, tokenize},
 };
-use crate::core::registry::Registry;
+use crate::core::{bridges::Bridges, registry::Registry};
 
 #[derive(Debug)]
 pub(crate) enum RuntimeError {
     Load(io::Error),
+    Handoff {
+        name: String,
+        index: usize,
+        target: std::path::PathBuf,
+        error: HandoffError,
+    },
     Tokenize(TokenizeError),
     DebugOutput(io::Error),
 }
@@ -23,6 +30,15 @@ pub(crate) enum RuntimeError {
 pub(crate) fn run_file(
     path: impl AsRef<Path>,
     registry: &Registry,
+    output: &mut impl io::Write,
+) -> Result<Vec<DispatchResult>, RuntimeError> {
+    run_file_with_bridges(path, registry, &Bridges::with_builtins(), output)
+}
+
+pub(crate) fn run_file_with_bridges(
+    path: impl AsRef<Path>,
+    registry: &Registry,
+    bridges: &Bridges,
     output: &mut impl io::Write,
 ) -> Result<Vec<DispatchResult>, RuntimeError> {
     let file = load_file(path).map_err(RuntimeError::Load)?;
@@ -46,9 +62,15 @@ pub(crate) fn run_file(
 
     for result in &results {
         // Unknown is reported and skipped; resolved data remains in source order.
-        // TODO: Deliver resolved CleanRole + entry once the receiving protocol is
-        // defined. Debug inspection is NOT physical handoff or Role execution.
         final_core_debug::inspect(result, output).map_err(RuntimeError::DebugOutput)?;
+        if let DispatchResult::Resolved { role, entry } = result {
+            handoff::deliver(bridges, entry, role).map_err(|error| RuntimeError::Handoff {
+                name: role.name.clone(),
+                index: role.index,
+                target: entry.target.clone(),
+                error,
+            })?;
+        }
     }
     Ok(results)
 }
