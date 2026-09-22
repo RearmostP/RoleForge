@@ -10,3 +10,5 @@ dynamic = ["version"]
 [tool.maturin]
 bindings = "pyo3"
 module-name = "roleforge._native"
+python-source = "roleforge/python"
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/.gitkeep"]

@@ -1,6 +1,6 @@
 """Real Python handoff and conflict preflight through public load().
 
-Run serially: the current Registry reads source-tree storage. Each test lends
+Run serially: the Registry reads installed-package storage. Each test lends
 that storage fixture data and restores the exact original bytes in finally.
 Receivers record actual delivery, including order and immutable input metadata.
 """
@@ -13,8 +13,10 @@ import tempfile
 import unittest
 
 
-ROOT = Path(__file__).resolve().parents[1]
-STORAGE = ROOT / "roleforge" / "core" / "storage"
+import roleforge
+
+PACKAGE_ROOT = Path(roleforge.__file__).resolve().parent
+STORAGE = PACKAGE_ROOT / "core" / "storage"
 
 INSPECT_PROJECT = """
 import json
@@ -38,7 +40,7 @@ class HandoffPreflightTests(unittest.TestCase):
         originals = [path.read_bytes() for path in paths]
         self.received = []
         try:
-            with tempfile.TemporaryDirectory(dir=ROOT / "roleforge" if relative else None) as directory:
+            with tempfile.TemporaryDirectory(dir=PACKAGE_ROOT if relative else None) as directory:
                 log = Path(directory) / "received.jsonl"
                 default_receiver = f'''import json
 from pathlib import Path
@@ -74,7 +76,7 @@ def start():
                                 f"def roleforge_receive(role):\n    assert role.name in {expected_names!r}")
                         destination.write_text(implementation, encoding="utf-8")
                 for path, registrations, base in zip(paths, [builtin, dynamic],
-                                                      [ROOT / "roleforge/builtin_roles", ROOT / "roleforge/roles"]):
+                                                      [PACKAGE_ROOT / "builtin_roles", PACKAGE_ROOT / "roles"]):
                     path.write_text(json.dumps({name: {"entry": {"via": via, "target": (
                         os.path.relpath(self.targets[target], base) if relative else str(self.targets[target]))}}
                                                 for name, target in registrations.items()}), encoding="utf-8")

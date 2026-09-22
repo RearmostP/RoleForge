@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [lib]
-path = "roleforge/lib.rs"
+path = "roleforge/src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

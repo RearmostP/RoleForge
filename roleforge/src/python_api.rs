@@ -89,7 +89,16 @@ impl Project {
 /// Discover Roles and deliver resolved instances; never automatically call start().
 #[pyfunction]
 fn load(py: Python<'_>, path: PathBuf) -> PyResult<Project> {
-    let registry = Registry::load()?;
+    // Resolve resources from the imported package, independently of the build tree.
+    let package_file = py.import("roleforge")?.getattr("__file__")?;
+    let package_root: PathBuf = py
+        .import("pathlib")?
+        .getattr("Path")?
+        .call1((package_file,))?
+        .call_method0("resolve")?
+        .getattr("parent")?
+        .extract()?;
+    let registry = Registry::load(&package_root)?;
     let results = run_file_with_bridges(
         &path,
         &registry,

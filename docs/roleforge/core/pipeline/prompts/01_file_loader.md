@@ -2,8 +2,8 @@
 
 Before making any changes:
 
-1. Read the Iron Rules in `docs/`.
-2. Read the current temporary decisions document in `docs/` if present.
+1. Read the Iron Rules in `../../../..`.
+2. Read the current temporary decisions document in `../../../..` if present.
 3. Inspect the existing project structure before choosing file/module locations.
 4. Do not implement anything outside the scope of this prompt.
 5. The RoleForge Core is being implemented in **Rust**. Do not implement this task in Python.

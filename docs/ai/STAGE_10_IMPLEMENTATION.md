@@ -6,10 +6,10 @@
 
 | קובץ שהכיל בדיקות inline | קובץ הבדיקות החדש |
 | --- | --- |
-| `roleforge/core/registry.rs` | `roleforge/core/registry/tests.rs` |
-| `roleforge/core/pipeline/loader.rs` | `roleforge/core/pipeline/loader/tests.rs` |
-| `roleforge/core/pipeline/dispatcher.rs` | `roleforge/core/pipeline/dispatcher/tests.rs` |
-| `roleforge/core/pipeline/tokenizer/tokenizer.rs` | `roleforge/core/pipeline/tokenizer/tokenizer/tests.rs` |
+| `../roleforge` | `../roleforge` |
+| `../roleforge` | `../roleforge` |
+| `../roleforge` | `../roleforge` |
+| `../roleforge` | `../roleforge` |
 
 בקובצי המימוש נשארה הצהרת `#[cfg(test)] mod tests;`. עזרי הבדיקות הועברו עם המודולים, כולל import של PathBuf שהיה בקובץ Dispatcher. בדיקות Runtime ו־Bridges כבר היו בקבצים נפרדים. לא הוסרו בדיקות. השוואה למקור לאחר rustfmt אישרה שגופי הבדיקות וקוד הריצה נשמרו.
 
@@ -23,7 +23,7 @@
 - `docs/human/en/README.md` ו־`docs/human/he/README.md`: פקודות הרצה, בדיקות, קישורים ודוגמת load.
 - `docs/human/en/CREATING_ROLES.md` ו־`docs/human/he/CREATING_ROLES.md`: קישורי main.py ו־test.rfg.
 - `external_test_project/test_python_api.py`: פקודת הבדיקה בתיאור המודול.
-- `roleforge/core/pipeline/runtime/tests.rs`: נתיב קובץ הבדיקה.
+- `../roleforge`: נתיב קובץ הבדיקה.
 
 נוספו הסברי גבולות הבדיקות בתיעוד הראשי ובכללי הברזל ל־AI, ושלב 10 נוסף לאינדקס הפרומפטים. האזכורים בדוחות שלבים 08 ו־09 ובפרומפטים ההיסטוריים נשמרו במכוון כתיעוד של זמנם. פרומפט שלב 10 שכבר היה במצב staged/modified לפני העבודה לא נערך.
 

@@ -8,16 +8,16 @@ Python הוא כרגע סביבת המימוש היחידה שיש עבורה מ
 
 ## 1. כותבים receiver
 
-האזור הנוכחי ל־Roles דינמיים הוא `roleforge/roles/`:
+האזור הנוכחי ל־Roles דינמיים הוא `roleforge/python/roleforge/roles/`:
 
 ```text
-roleforge/
+roleforge/python/roleforge/
 └── roles/
     └── Test/
         └── main.py
 ```
 
-בקובץ `roleforge/roles/Test/main.py`:
+בקובץ `roleforge/python/roleforge/roles/Test/main.py`:
 
 ```python
 from roleforge import Role as BaseRole
@@ -40,11 +40,11 @@ def roleforge_receive(role):
 
 קבלה פירושה ש־RoleForge מסר מופע שגילה במקור. היא אינה הוראה ל־Core להפעיל את הפעולות שה־Role מציע למשתמש. `start()` הוא פעולה נפרדת ואינו נקרא אוטומטית. חזרה רגילה מה־receiver נחשבת לקבלה מוצלחת; ערך החזרה אינו משמש את הפרוטוקול. חריגה מכשילה את המסירה.
 
-[המימוש הקיים של Test](../../../roleforge/roles/Test/main.py) מוסיף כותרות להדפסות וחושף `hello()`. מחלקת `Role` האופציונלית במודול היעד יורשת מ־`roleforge.Role`. הבנאי המורש מתאים את RoleInput בלי העתקת שדות ידנית; מאתחלים מצב ב־`roleforge_receive`. יעד ללא מחלקת `Role` מקבל מופע חי כללי. אם מוגדרת מחלקה כזו, היא חייבת לרשת ממחלקת הבסיס ולקבל את חוזה הבנייה עם קלט אחד. ה־Bridge אינו מסיק API מפונקציות אחרות במודול ואינו מפרש שמות פעולות.
+[המימוש הקיים של Test](../../../roleforge/python/roleforge/roles/Test/main.py) מוסיף כותרות להדפסות וחושף `hello()`. מחלקת `Role` האופציונלית במודול היעד יורשת מ־`roleforge.Role`. הבנאי המורש מתאים את RoleInput בלי העתקת שדות ידנית; מאתחלים מצב ב־`roleforge_receive`. יעד ללא מחלקת `Role` מקבל מופע חי כללי. אם מוגדרת מחלקה כזו, היא חייבת לרשת ממחלקת הבסיס ולקבל את חוזה הבנייה עם קלט אחד. ה־Bridge אינו מסיק API מפונקציות אחרות במודול ואינו מפרש שמות פעולות.
 
 ## 2. רושמים את היעד
 
-עורכים את `roleforge/core/storage/dynamic_roles.json`:
+עורכים את `roleforge/python/roleforge/core/storage/dynamic_roles.json`:
 
 ```json
 {
@@ -67,11 +67,11 @@ def roleforge_receive(role):
 
 כללי פתרון היעד כיום:
 
-- יעד דינמי יחסי מחושב ביחס ל־`roleforge/roles/`.
-- יעד מובנה יחסי מחושב ביחס ל־`roleforge/builtin_roles/`.
+- יעד דינמי יחסי מחושב ביחס ל־`roleforge/python/roleforge/roles/`.
+- יעד מובנה יחסי מחושב ביחס ל־`roleforge/python/roleforge/builtin_roles/`.
 - יעד מוחלט נשאר מוחלט.
 
-לכן `Test/main.py` מצביע על `roleforge/roles/Test/main.py`, ולא על קובץ ליד ה־`.rfg` או ביחס לתיקיית העבודה של Python. בסיסי הנתיבים ואחסון ה־Registry נקבעים לפי מיקום עותק המקור בזמן הבנייה. יש להשאיר אותו זמין; כללי האריזה הסופיים עדיין לא הוגדרו.
+בעותק המקור `Test/main.py` מצביע על `roleforge/python/roleforge/roles/Test/main.py`. בחבילה מותקנת בסיסי היעדים ואחסון ה־Registry נמצאים תחת `Path(roleforge.__file__).resolve().parent`, ללא תלות בעותק המקור או בתיקיית העבודה. לניהול ידני עורכים את קובצי ה־Registry ואת תיקיות ה־Roles בחבילה המותקנת. התקנת Wheel מחדש עלולה לדרוס שינויים ידניים.
 
 שם צריך להיות רשום רק באחד הקבצים `dynamic_roles.json` ו־`builtin_roles.json`. רישום בשניהם יוצר Conflict ומונע את כל המסירות באותה טעינה. לעומת זאת, כמה הצהרות של אותו Role במקור הן מצב תקין ואינן קונפליקט רישום.
 

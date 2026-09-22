@@ -10,8 +10,10 @@ import weakref
 from roleforge import Role, RoleInfo, load
 
 
-ROOT = Path(__file__).resolve().parents[1]
-STORAGE = ROOT / "roleforge/core/storage"
+import roleforge
+
+PACKAGE_ROOT = Path(roleforge.__file__).resolve().parent
+STORAGE = PACKAGE_ROOT / "core/storage"
 IMPLEMENTATION = '''from roleforge import Role as BaseRole
 
 def describe(role):
@@ -177,7 +179,7 @@ def roleforge_receive(role):
             self.project("@role Test\n")
 
     def test_development_test_role_exposes_hello_on_each_instance(self):
-        self.target = ROOT / "roleforge/roles/Test/main.py"
+        self.target = PACKAGE_ROOT / "roles/Test/main.py"
         self.register("Test")
         project = self.project("@role Test\nfirst\n@role Test\nsecond")
         self.assertEqual(project.test.hello(), "first\n")

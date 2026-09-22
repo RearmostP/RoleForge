@@ -3,11 +3,12 @@ use super::*;
 #[test]
 fn relative_entries_use_separate_absolute_default_directories() {
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Builtin":{"entry":{"via":"python","target":"Builtin/entry"}}}"#,
         r#"{"Dynamic":{"entry":{"via":"python","target":"Dynamic/entry"}}}"#,
     )
     .unwrap();
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge");
     assert!(root.is_absolute());
     assert_eq!(
         registry.get_entry("Builtin"),
@@ -33,8 +34,16 @@ fn absolute_entries_are_used_unchanged_in_both_registries() {
     let json =
         serde_json::json!({"External": {"entry": {"via": "python", "target": path}}}).to_string();
     for registry in [
-        Registry::from_json(&json, "{}"),
-        Registry::from_json("{}", &json),
+        Registry::from_json(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+            &json,
+            "{}",
+        ),
+        Registry::from_json(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+            "{}",
+            &json,
+        ),
     ] {
         assert_eq!(
             registry.unwrap().get_entry("External"),
@@ -49,6 +58,7 @@ fn absolute_entries_are_used_unchanged_in_both_registries() {
 #[test]
 fn cross_registry_name_collision_preserves_name_and_both_resolved_entries() {
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Same":{"entry":{"via":"python","target":"builtin/entry"}}}"#,
         r#"{"Same":{"entry":{"via":"python","target":"dynamic/entry"}}}"#,
     )
@@ -59,11 +69,15 @@ fn cross_registry_name_collision_preserves_name_and_both_resolved_entries() {
             name: "Same",
             builtin_entry: &RoleEntry {
                 via: "python".into(),
-                target: roleforge_root().join("builtin_roles/builtin/entry")
+                target: Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("roleforge/python/roleforge")
+                    .join("builtin_roles/builtin/entry")
             },
             dynamic_entry: &RoleEntry {
                 via: "python".into(),
-                target: roleforge_root().join("roles/dynamic/entry")
+                target: Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("roleforge/python/roleforge")
+                    .join("roles/dynamic/entry")
             },
         }
     );
@@ -81,8 +95,16 @@ fn malformed_metadata_returns_invalid_data() {
         r#"{"Role":{"entry":{"via":123,"target":"main.py"}}}"#,
     ] {
         for result in [
-            Registry::from_json(json, "{}"),
-            Registry::from_json("{}", json),
+            Registry::from_json(
+                &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+                json,
+                "{}",
+            ),
+            Registry::from_json(
+                &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+                "{}",
+                json,
+            ),
         ] {
             assert!(matches!(result, Err(error) if error.kind() == io::ErrorKind::InvalidData));
         }
@@ -91,5 +113,6 @@ fn malformed_metadata_returns_invalid_data() {
 
 #[test]
 fn loads_separate_storage_files() {
-    Registry::load().unwrap();
+    Registry::load(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"))
+        .unwrap();
 }

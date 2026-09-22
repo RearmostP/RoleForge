@@ -5,6 +5,7 @@ use std::path::PathBuf;
 #[test]
 fn routes_in_source_order_and_continues_after_unknown_with_context() {
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Zebra":{"entry":{"via":"python","target":"Zebra/entry"}}}"#,
         r#"{"Alpha":{"entry":{"via":"python","target":"Alpha/entry"}}}"#,
     )
@@ -24,7 +25,7 @@ fn routes_in_source_order_and_continues_after_unknown_with_context() {
                 entry: RoleEntry {
                     via: "python".into(),
                     target: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("roleforge/builtin_roles/Zebra/entry")
+                        .join("roleforge/python/roleforge/builtin_roles/Zebra/entry")
                 },
             },
             DispatchResult::Unknown {
@@ -35,7 +36,7 @@ fn routes_in_source_order_and_continues_after_unknown_with_context() {
                 entry: RoleEntry {
                     via: "python".into(),
                     target: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("roleforge/roles/Alpha/entry")
+                        .join("roleforge/python/roleforge/roles/Alpha/entry")
                 },
             },
         ]
@@ -50,7 +51,7 @@ fn routes_in_source_order_and_continues_after_unknown_with_context() {
 
 #[test]
 fn conflict_preserves_role_and_both_entries_and_continues_in_order() {
-    let registry = Registry::from_json(
+    let registry = Registry::from_json(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"First":{"entry":{"via":"python","target":"First/entry"}},"Directory":{"entry":{"via":"python","target":"Directory/entry"}}}"#,
         r#"{"Directory":{"entry":{"via":"python","target":"MyDirectory/entry"}},"Last":{"entry":{"via":"python","target":"Last/entry"}}}"#,
     )
@@ -63,7 +64,7 @@ fn conflict_preserves_role_and_both_entries_and_continues_in_order() {
     let roles = tokenize(&file).unwrap();
     let results = dispatch(roles, &registry);
     let mut expected = tokenize(&file).unwrap().into_iter();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("roleforge");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge");
     assert_eq!(
         results,
         vec![
@@ -105,6 +106,11 @@ fn conflict_preserves_role_and_both_entries_and_continues_in_order() {
 
 #[test]
 fn empty_input_has_no_results() {
-    let registry = Registry::from_json("{}", "{}").unwrap();
+    let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+        "{}",
+        "{}",
+    )
+    .unwrap();
     assert!(dispatch(Vec::new(), &registry).is_empty());
 }

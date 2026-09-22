@@ -8,16 +8,16 @@ The checkout already contains `Test`. The following is a complete minimal versio
 
 ## 1. Write the receiver
 
-The current dynamic Role area is `roleforge/roles/`:
+The current dynamic Role area is `roleforge/python/roleforge/roles/`:
 
 ```text
-roleforge/
+roleforge/python/roleforge/
 └── roles/
     └── Test/
         └── main.py
 ```
 
-In `roleforge/roles/Test/main.py`:
+In `roleforge/python/roleforge/roles/Test/main.py`:
 
 ```python
 from roleforge import Role as BaseRole
@@ -40,11 +40,11 @@ def roleforge_receive(role):
 
 Receipt means that RoleForge delivered a discovered instance. It does not mean that Core should execute your user-facing operations. `start()` is separate and is not automatically called. Returning normally counts as successful receipt; any return value is ignored. Raising an exception fails delivery.
 
-The existing [Test implementation](../../../roleforge/roles/Test/main.py) also prints labels and exposes `hello()`. The optional target-module `Role` class subclasses `roleforge.Role`. Its inherited constructor adapts RoleInput without field-copying boilerplate; initialize state in `roleforge_receive`. Targets without a `Role` class receive a generic live Role. A declared `Role` must be a subclass and accept the inherited one-input construction contract. The Bridge does not infer APIs from other module functions or interpret method names.
+The existing [Test implementation](../../../roleforge/python/roleforge/roles/Test/main.py) also prints labels and exposes `hello()`. The optional target-module `Role` class subclasses `roleforge.Role`. Its inherited constructor adapts RoleInput without field-copying boilerplate; initialize state in `roleforge_receive`. Targets without a `Role` class receive a generic live Role. A declared `Role` must be a subclass and accept the inherited one-input construction contract. The Bridge does not infer APIs from other module functions or interpret method names.
 
 ## 2. Register the destination
 
-Edit `roleforge/core/storage/dynamic_roles.json`:
+Edit `roleforge/python/roleforge/core/storage/dynamic_roles.json`:
 
 ```json
 {
@@ -67,11 +67,11 @@ Selection never infers a Bridge from `.py`. An unregistered identifier fails eve
 
 Current target resolution:
 
-- Dynamic relative targets use `roleforge/roles/` as their base.
-- Built-in relative targets use `roleforge/builtin_roles/`.
+- Dynamic relative targets use `roleforge/python/roleforge/roles/` as their base.
+- Built-in relative targets use `roleforge/python/roleforge/builtin_roles/`.
 - Absolute targets remain absolute.
 
-Thus `Test/main.py` resolves to `roleforge/roles/Test/main.py`, not beside the `.rfg` file and not relative to the Python working directory. These bases and Registry storage are derived from the checkout location at build time. Keep that checkout available; final packaging rules are not decided.
+Thus `Test/main.py` resolves to `roleforge/python/roleforge/roles/Test/main.py`, not beside the `.rfg` file and not relative to the Python working directory. These checkout paths map to the installed `roleforge` package. At runtime, target bases and Registry storage use `Path(roleforge.__file__).resolve().parent`. To manage an installed package manually, edit its Registry JSON and Role directories; the build checkout is not required. Reinstalling a Wheel can overwrite manual changes.
 
 Register a name in only one of `dynamic_roles.json` and `builtin_roles.json`. Registering it in both creates a Conflict and prevents all delivery for that load. Repeating a declaration in source is allowed and does not create a Registry conflict.
 

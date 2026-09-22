@@ -51,11 +51,11 @@ python -m pip install -e .
 python -u external_test_project/main.py
 ```
 
-The [example](../../../external_test_project/main.py) locates its `.rfg` file beside the script. It does not import the Test Role manually. The [dynamic Registry](../../../roleforge/core/storage/dynamic_roles.json) already registers `Test` with `via: "python"` and `target: "Test/main.py"`.
+The [example](../../../external_test_project/main.py) locates its `.rfg` file beside the script. It does not import the Test Role manually. The [dynamic Registry](../../../roleforge/python/roleforge/core/storage/dynamic_roles.json) already registers `Test` with `via: "python"` and `target: "Test/main.py"`.
 
 The receiver prints two instances: indexes `0/0` and `1/1`, declaration lines `1` and `5`, and bodies containing `hello = first` and `hello = second`. Temporary Core debug output is also printed. The example then calls `hello()` through implicit instance zero, explicit `[0]`, and `[1]`. No parser or `start()` is involved.
 
-If `import roleforge` fails, use the same Python environment in which you installed the checkout. An unbuilt checkout alone does not provide the native extension. Rebuild after Rust changes; rebuild if the checkout moves, because Registry paths currently depend on its build-time location.
+If `import roleforge` fails, use the same Python environment in which you installed the checkout. An unbuilt checkout alone does not provide the native extension. Rebuild after Rust changes. Installed Wheels locate Registry resources in the installed package and do not require the checkout.
 
 ## What load() returns
 
@@ -101,9 +101,9 @@ Implemented: Rust Loader, Main Tokenizer, Registry, Dispatcher, Runtime, preflig
 
 Not implemented or not finalized: Rust Role delivery, other Bridges, a Core-managed `start()` lifecycle, aliases/named instances, Role install/remove APIs, and final Error/Console Managers. Additional Bridges are possible architecturally; their mechanisms are not promises or settled designs.
 
-The built-in Role Registry is currently empty. `roleforge/builtin_roles/` reserves the built-in target base; `Test` is a dynamic development Role. A built-in Bridge and a built-in Role are different concepts.
+The built-in Role Registry is currently empty. `roleforge/python/roleforge/builtin_roles/` reserves the built-in target base; `Test` is a dynamic development Role. A built-in Bridge and a built-in Role are different concepts.
 
-Registry storage and target bases are currently tied to the source tree via Rust's build-time `CARGO_MANIFEST_DIR`. Portable distribution/runtime path rules remain open; this guide describes checkout-based development.
+Rust implementation lives under `roleforge/src/`, Python runtime files under `roleforge/python/roleforge/`, and documentation under `docs/`. At runtime, Registry storage and target bases resolve from the installed `roleforge` package. Build with `maturin build --release` and install the generated Wheel from `target/wheels/` using `python -m pip install --force-reinstall <wheel-path>`. Verify it from outside the repository without an editable install or repository `PYTHONPATH`.
 
 ## Contributor checks and documentation
 
@@ -116,6 +116,6 @@ cargo test
 python -m unittest discover -s external_test_project -v
 ```
 
-The Python handoff tests temporarily replace source-tree Registry fixtures and restore their original bytes. Do not run them concurrently with other loads or tests using those files.
+The Python handoff tests temporarily replace the imported package's Registry fixtures and restore their original bytes. Do not run them concurrently with other loads or tests using those files.
 
-Read the [human Iron Rules](IRON_RULES.md) before changing architecture. The [AI Iron Rules](../../ai/CORE_IRON_RULES.md) provide deeper constraints. The [Stage 08 report](../../ai/STAGE_08_IMPLEMENTATION.md) records that implementation checkpoint, while the [prompt index](../../../roleforge/core/pipeline/prompts/README.md) explains the historical sequence. Historical prompts do not override current documentation or approved architectural rules.
+Read the [human Iron Rules](IRON_RULES.md) before changing architecture. The [AI Iron Rules](../../ai/CORE_IRON_RULES.md) provide deeper constraints. The [Stage 08 report](../../ai/STAGE_08_IMPLEMENTATION.md) records that implementation checkpoint, while the [prompt index](../../roleforge/core/pipeline/prompts/README.md) explains the historical sequence. Historical prompts do not override current documentation or approved architectural rules.

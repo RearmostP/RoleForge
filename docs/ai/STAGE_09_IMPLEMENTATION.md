@@ -14,7 +14,7 @@ assert project.test is not project.test[1]
 
 Handoff ממיר `CleanRole` ל־`RoleInput` ניטרלי ופותר את `entry.via` כמזהה אטום. חוזה Bridge כולל כעת טיפוס תוצאה משויך `Live`; Runtime מעביר את התוצאות בתוך `LoadResult<T>` לצד מטא־דאטה של גילוי והאינדקס הגלובלי. אין אובייקטי Python במודלי הקלט הניטרליים ואין ידע על Test או hello ב־Core.
 
-ה־Python Bridge יוצר קלט Python קפוא ואז קורא לעזר הייצוג `_create_role` בתוך `roleforge/_live.py`. אם מודול היעד מגדיר מחלקת `Role` שיורשת מ־`roleforge.Role`, ה־Bridge יוצר מופע שלה עם הקלט; אחרת נוצר מופע כללי. בנאי הבסיס מספק שדות קלט לקריאה בלבד ללא העתקה ידנית. ה־receiver מאתחל מצב נוסף, והמחלקה מגדירה פעולות רגילות עם `self`. כל מסירה טוענת מקור מחדש ומייצרת מופע נפרד.
+ה־Python Bridge יוצר קלט Python קפוא ואז קורא לעזר הייצוג `_create_role` בתוך `../roleforge`. אם מודול היעד מגדיר מחלקת `Role` שיורשת מ־`roleforge.Role`, ה־Bridge יוצר מופע שלה עם הקלט; אחרת נוצר מופע כללי. בנאי הבסיס מספק שדות קלט לקריאה בלבד ללא העתקה ידנית. ה־receiver מאתחל מצב נוסף, והמחלקה מגדירה פעולות רגילות עם `self`. כל מסירה טוענת מקור מחדש ומייצרת מופע נפרד.
 
 לאחר חזרה מוצלחת מה־receiver מוחזר `Py<PyAny>` בבעלות מלאה, ו־Project מחזיק את האובייקט דרך `_ProjectRoles`. המופע שומר את הקלט והמחלקה; המתודות מחזיקות את סביבת המשתנים הגלובליים שלהן. שחזור הרישום הזמני ב־`sys.modules` אינו פוגע בשימוש אחרי הטעינה, וגם מופע שנשמר לאחר שחרור Project נשאר שמיש. הבדיקות מאמתות גם איסוף של קבוצת המופעים כאשר אין עוד הפניות אליה.
 
@@ -33,9 +33,9 @@ Handoff ממיר `CleanRole` ל־`RoleInput` ניטרלי ופותר את `entry
 
 ## קבצים
 
-נוספו `roleforge/_live.py`, `anyone_py_project/test_live_roles.py` ודוח זה.
+נוספו `../roleforge`, `anyone_py_project/test_live_roles.py` ודוח זה.
 
-עודכנו `roleforge/python_api.rs`, `roleforge/__init__.py`, `roleforge/core/bridges/python.rs`, `roleforge/core/bridges/mod.rs`, `roleforge/core/bridges/tests.rs`, `roleforge/core/pipeline/handoff.rs`, `roleforge/core/pipeline/runtime.rs`, `roleforge/core/pipeline/runtime/tests.rs`, `roleforge/roles/Test/main.py` ו־`anyone_py_project/main.py`.
+עודכנו `../roleforge`, `../roleforge`, `../roleforge`, `../roleforge`, `../roleforge`, `../roleforge`, `../roleforge`, `../roleforge`, `../roleforge` ו־`anyone_py_project/main.py`.
 
 עודכנו README הראשי, כל ששת מסמכי האדם בעברית ובאנגלית, `docs/ai/CORE_IRON_RULES.md` ואינדקס הפרומפטים. הפרומפטים ההיסטוריים ודוח שלב 08 נשמרו. בתחילת העבודה כבר היו שינויים ב־Handoff, ב־Runtime, בחוזה Bridges, בבדיקות שלהם ובדוגמת Test; המימוש ממשיך אותם. תיקיית `.idea` הקיימת לא נערכה.
 
@@ -51,7 +51,7 @@ Handoff ממיר `CleanRole` ל־`RoleInput` ניטרלי ופותר את `entry
 - `python -m unittest discover -s anyone_py_project -v`: עברו 27 בדיקות, 0 נכשלו, כולל בדיקות שלב 08 הקיימות.
 - `git diff --check`: עבר.
 
-לבדיקות Python הועתק DLL הבנייה המקומי אל `roleforge/_native.pyd` והוגדר PYTHONPATH לשורש הפרויקט עבור תהליכי הבדיקות. קובצי Registry הוחזרו לבתים המקוריים באמצעות cleanup/finally. נשארה אזהרת הקומפיילר הקיימת על `LoadedFile.path` שאינו נקרא בספרייה. לא בוצעו commit או push.
+לבדיקות Python הועתק DLL הבנייה המקומי אל `../roleforge` והוגדר PYTHONPATH לשורש הפרויקט עבור תהליכי הבדיקות. קובצי Registry הוחזרו לבתים המקוריים באמצעות cleanup/finally. נשארה אזהרת הקומפיילר הקיימת על `LoadedFile.path` שאינו נקרא בספרייה. לא בוצעו commit או push.
 
 ## החלטות שנותרו פתוחות
 

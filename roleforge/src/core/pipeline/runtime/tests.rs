@@ -79,6 +79,7 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let path = root.join("external_test_project/test_role.rfg");
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Directory":{"entry":{"via":"python","target":"Directory/entry"}}}"#,
         r#"{"Config":{"entry":{"via":"python","target":"Config/entry"}}}"#,
     )
@@ -93,8 +94,8 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
     } else {
         "\n"
     };
-    let directory = root.join("roleforge/builtin_roles/Directory/entry");
-    let config = root.join("roleforge/roles/Config/entry");
+    let directory = root.join("roleforge/python/roleforge/builtin_roles/Directory/entry");
+    let config = root.join("roleforge/python/roleforge/roles/Config/entry");
     assert_eq!(
         results,
         vec![
@@ -159,14 +160,14 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
     let fixture = TestFile::new(
         b"@role Missing\nunknown\n@role Shared\nconflict\n@role Last\nfirst\n@role Last\nsecond",
     );
-    let registry = Registry::from_json(
+    let registry = Registry::from_json(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Shared":{"entry":{"via":"python","target":"shared/builtin"}}}"#,
         r#"{"Shared":{"entry":{"via":"python","target":"shared/dynamic"}},"Last":{"entry":{"via":"python","target":"last/entry"}}}"#,
     )
     .unwrap();
     let mut output = Vec::new();
     let results = run_file(&fixture.0, &registry, &mut output).unwrap();
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge");
     assert_eq!(
         results,
         vec![
@@ -208,7 +209,9 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
 
 #[test]
 fn stored_registry_can_be_loaded_once_and_reused() {
-    let registry = Registry::load().unwrap();
+    let registry =
+        Registry::load(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"))
+            .unwrap();
     let fixture = TestFile::new(b"@role UnregisteredStage04Fixture\nbody");
     for _ in 0..2 {
         let mut output = Vec::new();
@@ -228,7 +231,12 @@ fn stored_registry_can_be_loaded_once_and_reused() {
 
 #[test]
 fn empty_and_comment_only_files_produce_no_debug_output() {
-    let registry = Registry::from_json("{}", "{}").unwrap();
+    let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+        "{}",
+        "{}",
+    )
+    .unwrap();
     for content in [b"".as_slice(), b"# comment\n\n"] {
         let fixture = TestFile::new(content);
         let mut output = Vec::new();
@@ -243,7 +251,12 @@ fn empty_and_comment_only_files_produce_no_debug_output() {
 
 #[test]
 fn load_failures_preserve_io_errors_without_debug_output() {
-    let registry = Registry::from_json("{}", "{}").unwrap();
+    let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+        "{}",
+        "{}",
+    )
+    .unwrap();
     let fixture = TestFile::new(&[0xff]);
     let mut output = Vec::new();
     assert!(
@@ -259,6 +272,7 @@ fn load_failures_preserve_io_errors_without_debug_output() {
 #[test]
 fn tokenizer_failure_stops_before_any_debug_output() {
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Valid":{"entry":{"via":"python","target":"valid"}}}"#,
         "{}",
     )
@@ -286,6 +300,7 @@ fn temporary_output_failure_is_returned() {
         }
     }
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         r#"{"Valid":{"entry":{"via":"python","target":"valid"}}}"#,
         "{}",
     )
@@ -306,6 +321,7 @@ fn native_results_keep_global_identity_without_reindexing_unknown_roles() {
         }
     }
     let registry = Registry::from_json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
         "{}",
         r#"{"Example":{"entry":{"via":"probe","target":"opaque"}}}"#,
     )

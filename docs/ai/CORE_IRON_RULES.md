@@ -431,11 +431,11 @@ Resolution must not accidentally depend on the process's Python or Rust current 
 Current physical directories include:
 
 ```text
-roleforge/builtin_roles/
-roleforge/roles/
+roleforge/python/roleforge/builtin_roles/
+roleforge/python/roleforge/roles/
 ```
 
-The current Rust implementation uses a source-tree-derived RoleForge root. The exact mechanism is an implementation detail. In particular, the current `CARGO_MANIFEST_DIR` strategy must not be declared a permanent packaging architecture.
+The Python API resolves the imported `roleforge.__file__` to its parent directory and passes that package root to Registry. Registry reads `core/storage/` and resolves relative targets under `builtin_roles/` or `roles/` within that root. Production runtime has no `CARGO_MANIFEST_DIR` dependency or source-tree fallback. Absolute registered destinations remain unchanged.
 
 Final packaging and runtime path-resolution strategy may evolve later. This document preserves the established relative-base distinction and absolute-path behavior without redesigning packaging.
 
@@ -646,8 +646,8 @@ RoleForge must support Roles beyond those shipped with the library. Dynamic Role
 Current project structure includes:
 
 ```text
-roleforge/builtin_roles/
-roleforge/roles/
+roleforge/python/roleforge/builtin_roles/
+roleforge/python/roleforge/roles/
 ```
 
 `roles/` is the current conventional/default location for dynamic Role implementations. It does not mean every future Role must physically live there under every configuration.
@@ -866,7 +866,7 @@ Small corrections to a completed stage do not automatically create a new numbere
 | Final Console Manager architecture | Preserve dedicated presentation without merging every concern into one subsystem. |
 | `interaction_mode` metadata | Conceptual interaction styles do not establish a metadata contract. |
 | Advanced source mapping | Retain useful source metadata and newline structure without speculative mapping infrastructure. |
-| Final packaging/runtime path-resolution strategy | Preserve registry-relative bases and absolute paths; do not freeze `CARGO_MANIFEST_DIR` as permanent packaging architecture. |
+| Future Role installation/removal workflow | Installed-package resource resolution is established; automatic Role management and publishing remain undecided. |
 
 Current names, field layouts, and file arrangements may evolve while preserving the established contracts. Where this document does not establish a decision, examples and implementation convenience must not silently supply one.
 
@@ -910,3 +910,7 @@ This is a quick pre-modification checklist for AI coding agents. It does not rep
 31. Every Role receives the common environment-neutral RoleInput contract.
 32. Python receipt requires roleforge_receive(role); it does not automatically call start().
 33. Conflict preflight completes before any delivery or target import.
+
+## Source and installed runtime layout (Stage 11)
+
+`roleforge/src/` contains Rust implementation and subsystem-local `tests.rs` files. `roleforge/python/roleforge/` contains the installed Python runtime and resources. `external_test_project/` remains an external consumer simulation; `docs/` contains documentation. Historical prompts remain under `../roleforge`, outside both runtime packaging and Rust implementation. A Wheel contains Python runtime files, the native extension, and packaging metadata, never Rust sources or development prompts. Registry edits and Role management remain manual. Source locations used by Rust tests are test fixtures only.

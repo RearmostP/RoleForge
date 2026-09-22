@@ -53,11 +53,11 @@ python -m pip install -e .
 python -u external_test_project/main.py
 ```
 
-[הדוגמה](../../../external_test_project/main.py) מוצאת את קובץ ה־`.rfg` שלצדה ואינה מייבאת את ה־Role ידנית. [ה־Registry הדינמי](../../../roleforge/core/storage/dynamic_roles.json) כבר כולל את `Test`, עם `via: "python"` ו־`target: "Test/main.py"`.
+[הדוגמה](../../../external_test_project/main.py) מוצאת את קובץ ה־`.rfg` שלצדה ואינה מייבאת את ה־Role ידנית. [ה־Registry הדינמי](../../../roleforge/python/roleforge/core/storage/dynamic_roles.json) כבר כולל את `Test`, עם `via: "python"` ו־`target: "Test/main.py"`.
 
 ה־receiver מדפיס שני מופעים: אינדקסים `0/0` ו־`1/1`, שורות הצהרה `1` ו־`5`, וגופים שמכילים `hello = first` ו־`hello = second`. מופיע גם פלט דיבוג זמני של Core. לאחר מכן הדוגמה קוראת ל־`hello()` דרך מופע אפס המשתמע, דרך `[0]` ודרך `[1]`. אין כאן parser או הפעלת `start()`.
 
-אם `import roleforge` נכשל, ודאו שאתם מריצים את אותו Python שבו התקנתם את הפרויקט. עותק מקור שלא נבנה אינו מספק את ההרחבה המקומית. לאחר שינוי Rust יש לבנות מחדש. גם לאחר העברת עותק המקור למיקום אחר צריך לבנות מחדש, כי מיקום ה־Registry נקבע כיום בזמן הבנייה.
+אם `import roleforge` נכשל, ודאו שאתם מריצים את אותו Python שבו התקנתם את הפרויקט. עותק מקור שלא נבנה אינו מספק את ההרחבה המקומית. לאחר שינוי Rust יש לבנות מחדש. Wheel מותקן מאתר את משאבי ה־Registry בחבילה המותקנת ואינו זקוק לעותק המקור.
 
 ## מה load() מחזיר
 
@@ -103,9 +103,9 @@ project.get_role("Test", 1).hello()  # Exact-name access.
 
 טרם מומשו או הוגדרו סופית: מסירה ל־Rust, Bridges נוספים, מחזור חיים של `start()` בניהול Core, aliases ושמות מופעים, API להתקנה ולהסרה של Roles, ו־Error/Console Managers סופיים. הארכיטקטורה מאפשרת הוספת Bridges בעתיד, אבל אינה מבטיחה מנגנון מסוים עבורם.
 
-ה־Registry של ה־Roles המובנים ריק כרגע. `roleforge/builtin_roles/` משמש בסיס ליעדים מובנים; `Test` הוא Role דינמי לצורכי פיתוח. Bridge מובנה ו־Role מובנה הם שני מושגים שונים.
+ה־Registry של ה־Roles המובנים ריק כרגע. `roleforge/python/roleforge/builtin_roles/` משמש בסיס ליעדים מובנים; `Test` הוא Role דינמי לצורכי פיתוח. Bridge מובנה ו־Role מובנה הם שני מושגים שונים.
 
-אחסון ה־Registry ובסיסי הנתיבים קשורים כרגע לעץ המקור דרך `CARGO_MANIFEST_DIR` של Rust בזמן הבנייה. כללי הפצה ונתיבי runtime ניידים עדיין פתוחים; ההוראות כאן מיועדות לפיתוח מתוך עותק מקור.
+קוד Rust נמצא ב־`roleforge/src/`, חבילת זמן הריצה ב־`roleforge/python/roleforge/`, והתיעוד ב־`docs/`. אחסון ה־Registry ובסיסי היעדים נפתרים ביחס לחבילת `roleforge` המותקנת. בונים באמצעות `maturin build --release`, ומתקינים את ה־Wheel שנוצר ב־`target/wheels/` באמצעות `python -m pip install --force-reinstall <wheel-path>`. את אימות ההפצה מריצים מחוץ לריפו, ללא התקנה editable או `PYTHONPATH` לריפו.
 
 ## בדיקות ומסמכים לתורמים
 
@@ -118,6 +118,6 @@ cargo test
 python -m unittest discover -s external_test_project -v
 ```
 
-בדיקות המסירה ב־Python מחליפות זמנית את קובצי ה־Registry ומחזירות את הבתים המקוריים בסיום. אין להריץ אותן במקביל לטעינות או לבדיקות אחרות שמשתמשות באותם קבצים.
+בדיקות המסירה ב־Python מחליפות זמנית את קובצי ה־Registry של החבילה המיובאת ומחזירות את הבתים המקוריים בסיום. אין להריץ אותן במקביל לטעינות או לבדיקות אחרות שמשתמשות באותם קבצים.
 
-לפני שינוי ארכיטקטורה כדאי לקרוא את [כללי הברזל למפתחים](IRON_RULES.md). [כללי הברזל ל־AI](../../ai/CORE_IRON_RULES.md) מספקים פירוט נוסף. [דוח שלב 08](../../ai/STAGE_08_IMPLEMENTATION.md) מתעד את אותה נקודת פיתוח, ו[אינדקס הפרומפטים](../../../roleforge/core/pipeline/prompts/README.md) מסביר את ההיסטוריה. פרומפט היסטורי אינו גובר על התיעוד העדכני או על כללי הארכיטקטורה המאושרים.
+לפני שינוי ארכיטקטורה כדאי לקרוא את [כללי הברזל למפתחים](IRON_RULES.md). [כללי הברזל ל־AI](../../ai/CORE_IRON_RULES.md) מספקים פירוט נוסף. [דוח שלב 08](../../ai/STAGE_08_IMPLEMENTATION.md) מתעד את אותה נקודת פיתוח, ו[אינדקס הפרומפטים](../../roleforge/core/pipeline/prompts/README.md) מסביר את ההיסטוריה. פרומפט היסטורי אינו גובר על התיעוד העדכני או על כללי הארכיטקטורה המאושרים.

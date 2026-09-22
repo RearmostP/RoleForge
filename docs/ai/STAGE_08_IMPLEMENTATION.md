@@ -43,38 +43,38 @@ Conflict כלשהו מונע את כל המסירות. Unknown מדווח ומד
 - `python -m unittest discover -s anyone_py_project -v`: עברו 14 בדיקות, 0 נכשלו.
 - `git diff --check`: עבר.
 
-לבדיקות Python הועתק `target/debug/roleforge.dll` אל `roleforge/_native.pyd`, והוגדר `PYTHONPATH` לשורש הפרויקט כדי שתהליכים שרצים מתיקיות זמניות ימצאו את החבילה המקומית. בהרצה ראשונה ללא הגדרה זו נכשלו imports בתהליכים אלה. בדיקת הנתיבים היחסיים תוקנה ליצור את הקבצים הזמניים באותו כונן, כנדרש ב־Windows.
+לבדיקות Python הועתק `target/debug/roleforge.dll` אל `../roleforge`, והוגדר `PYTHONPATH` לשורש הפרויקט כדי שתהליכים שרצים מתיקיות זמניות ימצאו את החבילה המקומית. בהרצה ראשונה ללא הגדרה זו נכשלו imports בתהליכים אלה. בדיקת הנתיבים היחסיים תוקנה ליצור את הקבצים הזמניים באותו כונן, כנדרש ב־Windows.
 
 הבדיקות מוכיחות קבלה בפועל, מטא־דאטה וסדר, מופעים חוזרים, קלט לקריאה בלבד, היעדר הפעלת start, דילוג על Unknown, חסימת כל המסירות ב־Conflict, נתיבים יחסיים ומוחלטים מתיקיית עבודה אחרת, קבצים בעלי אותו basename, וקטגוריות כשל נפרדות ל־Bridge לא מוכר, יעד חסר/לא תקין, receiver חסר/לא callable וחריגת receiver. בדיקות Rust של orchestration משתמשות ב־Bridge בדיקה מפורש; הוכחת מסירת Python היא בבדיקות Python.
 
-אזהרת קומפיילר אחת קיימת: `LoadedFile.path` ב־`roleforge/core/pipeline/models.rs:9` אינו נקרא בקוד הספרייה (`dead_code`). Git דיווח גם על המרת LF ל־CRLF עתידית; אלו הודעות סיומות שורה ולא שגיאות בדיקה.
+אזהרת קומפיילר אחת קיימת: `LoadedFile.path` ב־`../roleforge` אינו נקרא בקוד הספרייה (`dead_code`). Git דיווח גם על המרת LF ל־CRLF עתידית; אלו הודעות סיומות שורה ולא שגיאות בדיקה.
 
 ## קבצים
 
 נוצרו:
 
-- `roleforge/core/role_input.rs`
-- `roleforge/core/pipeline/handoff.rs`
+- `../roleforge`
+- `../roleforge`
 - `docs/ai/STAGE_08_IMPLEMENTATION.md`
 
 שונו:
 
 - `anyone_py_project/test_handoff_preflight.py`
 - `docs/ai/CORE_IRON_RULES.md`
-- `roleforge/__init__.py`
-- `roleforge/python_api.rs`
-- `roleforge/core/mod.rs`
-- `roleforge/core/registry.rs`
-- `roleforge/core/bridges/mod.rs`
-- `roleforge/core/bridges/python.rs`
-- `roleforge/core/bridges/tests.rs`
-- `roleforge/core/pipeline/mod.rs`
-- `roleforge/core/pipeline/dispatcher.rs`
-- `roleforge/core/pipeline/final_core_debug.rs`
-- `roleforge/core/pipeline/runtime.rs`
-- `roleforge/core/pipeline/runtime/tests.rs`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
+- `../roleforge`
 
-הוסר: `roleforge/core/bridges/rust.rs`. לא שונו שמות קבצים. עודכנו תוצרי בנייה תחת `target/` וההרחבה המקומית `roleforge/_native.pyd`, שאינם מנוהלים ב־Git.
+הוסר: `../roleforge`. לא שונו שמות קבצים. עודכנו תוצרי בנייה תחת `target/` וההרחבה המקומית `../roleforge`, שאינם מנוהלים ב־Git.
 
 קובצי האחסון של Registry שימשו כ־fixtures והוחזרו לבתים המקוריים ב־finally. הפרומפט `08_python_role_handoff.md` כבר היה קיים עם שינויים לפני העבודה ולא נערך כאן. גם הפרומפטים ההיסטוריים, ובפרט שלב 07, נשמרו. לא בוצעו commit או push.
 

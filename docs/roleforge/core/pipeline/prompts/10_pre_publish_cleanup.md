@@ -54,7 +54,7 @@ Before beginning packaging and publishing work, the repository should now be cle
 Before modifying anything:
 
 1. Inspect the current repository structure.
-2. Read the current AI documentation under `docs/ai/`.
+2. Read the current AI documentation under `../../../../ai`.
 3. Read the current implementation, especially:
     - Core pipeline
     - Registry
@@ -177,7 +177,7 @@ Do not leave stale active references to `anyone_py_project`.
 
 # 4. Responsibilities of the External Test Project
 
-`external_test_project/` is for Python-facing / consumer-facing testing.
+`../../../../../external_test_project` is for Python-facing / consumer-facing testing.
 
 It may contain:
 
@@ -201,7 +201,7 @@ Internal Rust/Core unit tests do not belong here.
 
 # 5. Production Code Boundary
 
-The `roleforge/` directory should contain RoleForge implementation and required runtime resources.
+The `../../..` directory should contain RoleForge implementation and required runtime resources.
 
 Test implementation must not be mixed unnecessarily into production implementation files.
 
@@ -277,8 +277,8 @@ Do NOT yet:
 - publish to PyPI
 - create PyPI accounts or tokens
 - implement GitHub Actions publishing
-- redesign `pyproject.toml`
-- redesign `Cargo.toml`
+- redesign `../../../../../pyproject.toml`
+- redesign `../../../../../Cargo.toml`
 - solve wheel distribution
 - implement cross-platform builds
 - implement release automation

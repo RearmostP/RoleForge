@@ -37,17 +37,16 @@ pub(crate) enum LookupResult<'a> {
 }
 
 impl Registry {
-    pub(crate) fn load() -> io::Result<Self> {
-        let root = roleforge_root();
+    pub(crate) fn load(root: &Path) -> io::Result<Self> {
         let storage = root.join("core/storage");
         Self::from_json(
+            root,
             &fs::read_to_string(storage.join("builtin_roles.json"))?,
             &fs::read_to_string(storage.join("dynamic_roles.json"))?,
         )
     }
 
-    pub(super) fn from_json(builtin: &str, dynamic: &str) -> io::Result<Self> {
-        let root = roleforge_root();
+    pub(super) fn from_json(root: &Path, builtin: &str, dynamic: &str) -> io::Result<Self> {
         Ok(Self {
             builtin: parse_entries(builtin, &root.join("builtin_roles"))?,
             dynamic: parse_entries(dynamic, &root.join("roles"))?,
@@ -65,11 +64,6 @@ impl Registry {
             (None, None) => LookupResult::Unknown,
         }
     }
-}
-
-fn roleforge_root() -> PathBuf {
-    // Stage 03 uses the source-tree location fixed at build time, never the process CWD.
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge")
 }
 
 fn parse_entries(json: &str, base: &Path) -> io::Result<HashMap<String, RoleEntry>> {

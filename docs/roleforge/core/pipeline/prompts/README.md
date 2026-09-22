@@ -1,6 +1,6 @@
 # RoleForge development prompt history
 
-[Project home](../../../../README.md) · [English documentation](../../../../docs/human/en/README.md) · [תיעוד בעברית](../../../../docs/human/he/README.md) · [Live AI Iron Rules](../../../../docs/ai/CORE_IRON_RULES.md)
+[Project home](../../../../../README.md) · [English documentation](../../../../human/en/README.md) · [תיעוד בעברית](../../../../human/he/README.md) · [Live AI Iron Rules](../../../../ai/CORE_IRON_RULES.md)
 
 This folder preserves the prompts used to develop RoleForge. They describe requests and decisions at particular points in time, not a current feature specification or user guide. Older prompts can describe architecture that later changed or ideas that were never implemented.
 
@@ -21,7 +21,7 @@ Use the live human documentation for current usage and the live Iron Rules for a
 | 09 | [Live Role Objects](09_live_role_objects.md) | Retain Bridge-created Python instances in Project, expose Role methods and per-name indexing, and preserve neutral metadata. |
 | 10 | [Pre-Publishing Cleanup](10_pre_publish_cleanup.md) | Separate internal Rust tests from production files and rename the external Python consumer project without runtime or packaging changes. |
 
-For example, the Rust Bridge in Stage 07 is historical: Stage 08 removed it. The old string Registry entries likewise do not describe today's structured entries. Read the [Creating Roles guide](../../../../docs/human/en/CREATING_ROLES.md) for current examples.
+For example, the Rust Bridge in Stage 07 is historical: Stage 08 removed it. The old string Registry entries likewise do not describe today's structured entries. Read the [Creating Roles guide](../../../../human/en/CREATING_ROLES.md) for current examples.
 
 ## Non-numbered work
 
