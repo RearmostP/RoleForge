@@ -20,6 +20,25 @@ pub(crate) enum DispatchResult {
     },
 }
 
+impl DispatchResult {
+    pub(crate) fn event(&self) -> crate::core::errors::CoreEvent<'_> {
+        use crate::core::errors::CoreEvent;
+        match self {
+            Self::Resolved { role, entry } => CoreEvent::ResolvedRole { role, entry },
+            Self::Unknown { role } => CoreEvent::UnknownRole { role },
+            Self::Conflict {
+                role,
+                builtin_entry,
+                dynamic_entry,
+            } => CoreEvent::RoleConflict {
+                role,
+                builtin_entry,
+                dynamic_entry,
+            },
+        }
+    }
+}
+
 pub(crate) fn dispatch(roles: Vec<CleanRole>, registry: &Registry) -> Vec<DispatchResult> {
     roles
         .into_iter()

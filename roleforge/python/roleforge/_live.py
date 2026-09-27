@@ -2,13 +2,15 @@
 import keyword
 import operator
 
+from . import _errors
+
 
 def _select(instances, index):
     index = operator.index(index)
     try:
         return instances[index]
     except KeyError:
-        raise IndexError(f"No live Role occurrence at role_index {index}") from None
+        raise _errors.role_occurrence_not_found(index) from None
 
 
 class Role:
@@ -49,7 +51,7 @@ class Role:
 def _create_role(module, role_input):
     role_type = vars(module).get("Role", Role)
     if not isinstance(role_type, type) or not issubclass(role_type, Role):
-        raise TypeError("Target Role must subclass roleforge.Role")
+        raise _errors.invalid_role_class()
     return role_type(role_input)
 
 
@@ -70,15 +72,13 @@ class _ProjectRoles:
         try:
             instances = self.groups[name]
         except KeyError:
-            raise KeyError(f"No successfully delivered Role named {name!r}") from None
+            raise _errors.live_role_not_found(name) from None
         return _select(instances, index)
 
     def by_attribute(self, attribute):
         names = self.attributes.get(attribute, ())
         if not names:
-            raise AttributeError(f"No live Role attribute {attribute!r}")
+            raise _errors.live_role_attribute_not_found(attribute)
         if len(names) != 1:
-            raise AttributeError(
-                f"Ambiguous Role attribute {attribute!r}; use get_role(exact_name)"
-            )
+            raise _errors.ambiguous_role_attribute(attribute, names)
         return self.by_name(names[0], 0)

@@ -1,4 +1,5 @@
 use super::*;
+use std::io;
 use std::{
     io::Write,
     path::PathBuf,
@@ -40,7 +41,7 @@ impl Drop for TestFile {
 }
 
 #[test]
-fn loads_rfg_with_exact_utf8_content_and_path() -> io::Result<()> {
+fn loads_rfg_with_exact_utf8_content_and_path() -> Result<(), Box<dyn std::error::Error>> {
     let content = "arbitrary source\r\nשלום 🌍\n";
     let fixture = TestFile::new(content.as_bytes())?;
 

@@ -3,3 +3,4 @@
 
 mod core;
 mod python_api;
+mod python_errors;

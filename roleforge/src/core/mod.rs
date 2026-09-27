@@ -2,6 +2,8 @@
 // Output: Core infrastructure available within the crate.
 
 pub(crate) mod bridges;
+pub(crate) mod errors;
+pub(crate) mod output;
 pub(crate) mod pipeline;
 pub(crate) mod registry;
 

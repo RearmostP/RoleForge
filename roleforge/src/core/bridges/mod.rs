@@ -8,14 +8,7 @@ use std::path::Path;
 
 mod python;
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum BridgeError {
-    PythonTargetLoadFailure(String),
-    MissingReceiver,
-    ReceiverNotCallable,
-    ReceiverRaised(String),
-    InputConversion(String),
-}
+pub(crate) use crate::core::errors::BridgeError;
 
 pub(crate) trait Bridge {
     type Live;

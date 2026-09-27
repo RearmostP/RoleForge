@@ -3,10 +3,11 @@
 
 use std::{
     collections::HashMap,
-    fs, io,
+    fs,
     path::{Path, PathBuf},
 };
 
+use crate::core::errors::{FileError, RegistryError};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -37,19 +38,31 @@ pub(crate) enum LookupResult<'a> {
 }
 
 impl Registry {
-    pub(crate) fn load(root: &Path) -> io::Result<Self> {
+    pub(crate) fn load(root: &Path) -> Result<Self, RegistryError> {
         let storage = root.join("core/storage");
         Self::from_json(
             root,
-            &fs::read_to_string(storage.join("builtin_roles.json"))?,
-            &fs::read_to_string(storage.join("dynamic_roles.json"))?,
+            &read_registry(&storage.join("builtin_roles.json"))?,
+            &read_registry(&storage.join("dynamic_roles.json"))?,
         )
     }
 
-    pub(super) fn from_json(root: &Path, builtin: &str, dynamic: &str) -> io::Result<Self> {
+    pub(super) fn from_json(
+        root: &Path,
+        builtin: &str,
+        dynamic: &str,
+    ) -> Result<Self, RegistryError> {
         Ok(Self {
-            builtin: parse_entries(builtin, &root.join("builtin_roles"))?,
-            dynamic: parse_entries(dynamic, &root.join("roles"))?,
+            builtin: parse_entries(
+                builtin,
+                &root.join("builtin_roles"),
+                &root.join("core/storage/builtin_roles.json"),
+            )?,
+            dynamic: parse_entries(
+                dynamic,
+                &root.join("roles"),
+                &root.join("core/storage/dynamic_roles.json"),
+            )?,
         })
     }
 
@@ -66,9 +79,17 @@ impl Registry {
     }
 }
 
-fn parse_entries(json: &str, base: &Path) -> io::Result<HashMap<String, RoleEntry>> {
+fn read_registry(path: &Path) -> Result<String, RegistryError> {
+    fs::read_to_string(path).map_err(|error| RegistryError::File(FileError::reading(path, error)))
+}
+
+fn parse_entries(
+    json: &str,
+    base: &Path,
+    path: &Path,
+) -> Result<HashMap<String, RoleEntry>, RegistryError> {
     let entries: HashMap<String, Entry> = serde_json::from_str(json)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        .map_err(|_| RegistryError::InvalidRegistry { path: path.into() })?;
     Ok(entries
         .into_iter()
         .map(|(name, entry)| {

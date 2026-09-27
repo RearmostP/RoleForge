@@ -7,8 +7,4 @@ pub(super) struct RawRole<'a> {
     pub(super) declaration_line: usize,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum TokenizeError {
-    MissingRoleName { line: usize },
-    ContentBeforeRole { line: usize },
-}
+pub(crate) use crate::core::errors::TokenizeError;

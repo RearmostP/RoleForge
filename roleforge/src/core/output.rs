@@ -1,13 +1,19 @@
-// Temporary Core inspection and Stage 06 reports, not Role delivery or execution.
-// TODO: Replace direct Unknown/Conflict output with the structured error/event
-// system when defined. This is not the future Console or Error Manager.
+// Dedicated presentation adapter; no detection, severity, or continuation policy.
 use std::io::{self, Write};
 
-use super::dispatcher::DispatchResult;
+use crate::core::errors::{CoreEvent, OutputWriteFailed};
 
-pub(super) fn inspect(result: &DispatchResult, output: &mut impl Write) -> io::Result<()> {
-    match result {
-        DispatchResult::Resolved { role, entry } => writeln!(
+/// Preserve the existing stdout text and write timing. Runtime owns policy.
+pub(crate) fn report(
+    event: CoreEvent<'_>,
+    output: &mut impl Write,
+) -> Result<(), OutputWriteFailed> {
+    render(event, output).map_err(OutputWriteFailed::from)
+}
+
+fn render(event: CoreEvent<'_>, output: &mut impl Write) -> io::Result<()> {
+    match event {
+        CoreEvent::ResolvedRole { role, entry } => writeln!(
             output,
             "[CORE DEBUG]\nRole: {}\nGlobal Index: {}\nRole Index: {}\nDeclaration Line: {}\nBody:\n{}\nStatus: Resolved\nEntry: {}",
             role.name,
@@ -17,10 +23,10 @@ pub(super) fn inspect(result: &DispatchResult, output: &mut impl Write) -> io::R
             role.body,
             entry.target.display()
         ),
-        DispatchResult::Unknown { role } => {
+        CoreEvent::UnknownRole { role } => {
             writeln!(output, "[RoleForge] Unknown Role: {}", role.name)
         }
-        DispatchResult::Conflict {
+        CoreEvent::RoleConflict {
             role,
             builtin_entry,
             dynamic_entry,
@@ -31,9 +37,6 @@ pub(super) fn inspect(result: &DispatchResult, output: &mut impl Write) -> io::R
             builtin_entry.target.display(),
             dynamic_entry.target.display()
         ),
+        CoreEvent::HandoffAborted => writeln!(output, "[RoleForge] Handoff aborted."),
     }
-}
-
-pub(super) fn handoff_aborted(output: &mut impl Write) -> io::Result<()> {
-    writeln!(output, "[RoleForge] Handoff aborted.")
 }

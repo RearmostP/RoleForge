@@ -1,4 +1,5 @@
 use super::*;
+use std::io;
 
 #[test]
 fn relative_entries_use_separate_absolute_default_directories() {
@@ -96,12 +97,14 @@ fn malformed_metadata_returns_invalid_data() {
     ] {
         for result in [
             Registry::from_json(
-                &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+                &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("roleforge/python/roleforge"),
                 json,
                 "{}",
             ),
             Registry::from_json(
-                &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+                &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("roleforge/python/roleforge"),
                 "{}",
                 json,
             ),
@@ -113,6 +116,26 @@ fn malformed_metadata_returns_invalid_data() {
 
 #[test]
 fn loads_separate_storage_files() {
-    Registry::load(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"))
-        .unwrap();
+    Registry::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+    )
+    .unwrap();
+}
+
+#[test]
+fn invalid_registry_identifies_the_actual_storage_file_without_parser_details() {
+    let root = Path::new("package");
+    for (builtin, dynamic, filename) in [
+        ("{", "{}", "builtin_roles.json"),
+        ("{}", "{", "dynamic_roles.json"),
+    ] {
+        let error = match Registry::from_json(root, builtin, dynamic) {
+            Err(error) => error,
+            Ok(_) => panic!("invalid registry accepted"),
+        };
+        assert_eq!(error.name(), "InvalidRegistry");
+        assert_eq!(error.path(), root.join("core/storage").join(filename));
+        assert!(std::error::Error::source(&error).is_none());
+        assert!(!error.to_string().contains("EOF"));
+    }
 }

@@ -48,13 +48,13 @@ impl Bridge for PythonBridge {
     fn deliver(&self, target: &Path, role: RoleInput) -> Result<LiveRole, BridgeError> {
         Python::initialize();
         Python::attach(|py| {
-            let load_error = |error: PyErr| BridgeError::PythonTargetLoadFailure(error.to_string());
+            let load_error = |_: PyErr| BridgeError::PythonTargetLoadFailure;
             let target = target
                 .canonicalize()
-                .map_err(|error| BridgeError::PythonTargetLoadFailure(error.to_string()))?;
-            let filename = target.to_str().ok_or_else(|| {
-                BridgeError::PythonTargetLoadFailure("target is not Unicode".into())
-            })?;
+                .map_err(|_| BridgeError::PythonTargetLoadFailure)?;
+            let filename = target
+                .to_str()
+                .ok_or(BridgeError::PythonTargetLoadFailure)?;
             // Encode the full canonical path, not just the basename. No collisions,
             // target search, sys.path changes, or persistent module cache.
             use std::fmt::Write;
@@ -105,14 +105,14 @@ impl Bridge for PythonBridge {
                     return Err(BridgeError::ReceiverNotCallable);
                 }
                 let input = Py::new(py, PythonInput::from(role))
-                    .map_err(|e| BridgeError::InputConversion(e.to_string()))?;
+                    .map_err(|_| BridgeError::InputConversion)?;
                 let live = py
                     .import("roleforge._live")
                     .and_then(|adapter| adapter.call_method1("_create_role", (&module, input)))
-                    .map_err(|e| BridgeError::InputConversion(e.to_string()))?;
+                    .map_err(|_| BridgeError::InputConversion)?;
                 receiver
                     .call1((&live,))
-                    .map_err(|e| BridgeError::ReceiverRaised(e.to_string()))?;
+                    .map_err(|_| BridgeError::ReceiverRaised)?;
                 Ok(live.unbind())
             })();
             let cleanup = match previous {
@@ -120,7 +120,7 @@ impl Bridge for PythonBridge {
                 None => modules.del_item(&name),
             };
             let live = result?;
-            cleanup.map_err(load_error)?;
+            cleanup.map_err(|_| BridgeError::DeliveryCleanupFailed)?;
             Ok(live)
         })
     }

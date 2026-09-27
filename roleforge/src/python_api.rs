@@ -2,18 +2,15 @@
 use std::{io, path::PathBuf};
 
 use pyo3::{
-    exceptions::{PyRuntimeError, PyValueError},
+    exceptions::{PyAttributeError, PyException},
     prelude::*,
     types::{PyList, PyTuple},
 };
 
 use crate::core::{
     bridges::Bridges,
-    pipeline::{
-        dispatcher::DispatchResult,
-        runtime::{RuntimeError, run_file_with_bridges},
-        tokenizer::TokenizeError,
-    },
+    errors::PackagePathResolutionFailed as PackagePathFailure,
+    pipeline::{dispatcher::DispatchResult, runtime::run_file_with_bridges},
     registry::Registry,
 };
 
@@ -86,75 +83,101 @@ impl Project {
     }
 }
 
-/// Discover Roles and deliver resolved instances; never automatically call start().
-#[pyfunction]
-fn load(py: Python<'_>, path: PathBuf) -> PyResult<Project> {
-    // Resolve resources from the imported package, independently of the build tree.
+// Preserve compatibility with callers that previously caught AttributeError.
+pyo3::create_exception!(roleforge, PackagePathResolutionFailed, PyAttributeError);
+
+/// This boundary owns load-request context; Core owns the failure explanation.
+fn package_path_failure(py: Python<'_>, requested_file: &std::path::Path) -> PyResult<PyErr> {
+    let diagnostic = PackagePathFailure;
+    let error = PackagePathResolutionFailed::new_err(format!(
+        "{}: {}\n{}\nRequested file: {}",
+        PackagePathFailure::CATEGORY,
+        PackagePathFailure::NAME,
+        diagnostic.message(),
+        requested_file.display(),
+    ));
+    let value = error.value(py);
+    value.setattr("requested_file", requested_file.as_os_str())?;
+    // Do not render an unrelated active Python exception as implicit context.
+    value.setattr("__suppress_context__", true)?;
+    Ok(error)
+}
+
+/// All fallible package discovery belongs inside this bounded operation.
+fn discover_package_root(py: Python<'_>) -> PyResult<PathBuf> {
     let package_file = py.import("roleforge")?.getattr("__file__")?;
-    let package_root: PathBuf = py
-        .import("pathlib")?
+    py.import("pathlib")?
         .getattr("Path")?
         .call1((package_file,))?
         .call_method0("resolve")?
         .getattr("parent")?
-        .extract()?;
-    let registry = Registry::load(&package_root)?;
-    let results = run_file_with_bridges(
-        &path,
-        &registry,
-        &Bridges::with_builtins(),
-        &mut io::stdout().lock(),
-    )
-    .map_err(|error| match error {
-        RuntimeError::Load(error) | RuntimeError::DebugOutput(error) => PyErr::from(error),
-        RuntimeError::Handoff {
-            name,
-            index,
-            target,
-            error,
-        } => {
-            use crate::core::pipeline::handoff::HandoffError;
-            let detail = match error {
-                HandoffError::UnknownBridge(via) => format!("UnknownBridge: {via}"),
-                HandoffError::Delivery(error) => format!("{error:?}"),
-            };
-            PyRuntimeError::new_err(format!(
-                "Role {name} (index {index}), {}: {detail}",
-                target.display()
-            ))
+        .extract()
+}
+
+/// Discover Roles and deliver resolved instances; never automatically call start().
+#[pyfunction]
+fn load(py: Python<'_>, path: PathBuf) -> PyResult<Project> {
+    let package_root = match discover_package_root(py) {
+        Ok(root) => root,
+        Err(error) if error.is_instance_of::<PyException>(py) => {
+            // Discard the internal exception before creating the public diagnostic.
+            drop(error);
+            return Err(package_path_failure(py, &path)?);
         }
-        RuntimeError::Tokenize(error) => {
-            let (line, message) = match error {
-                TokenizeError::MissingRoleName { line } => (line, "missing Role name"),
-                TokenizeError::ContentBeforeRole { line } => (line, "content before first Role"),
-            };
-            PyValueError::new_err(format!("{}:{line}: {message}", path.display()))
-        }
-    })?;
-    let live = py
-        .import("roleforge._live")?
-        .call_method1(
-            "_ProjectRoles",
-            (PyList::new(
-                py,
-                results.delivered.into_iter().map(|(_, live)| live),
-            )?,),
-        )?
+        // BaseException subclasses (including process-control exceptions) propagate.
+        Err(error) => return Err(error),
+    };
+    let registry = match Registry::load(&package_root) {
+        Ok(registry) => registry,
+        Err(error) => return Err(crate::python_errors::registry(py, error)?),
+    };
+    let mut output = io::stdout().lock();
+    let results =
+        match run_file_with_bridges(&path, &registry, &Bridges::with_builtins(), &mut |event| {
+            crate::core::output::report(event, &mut output)
+        }) {
+            Ok(results) => results,
+            Err(error) => return Err(crate::python_errors::runtime(py, error, &path)?),
+        };
+    drop(output);
+    build_project(py, &path, results)
+}
+
+fn build_project(
+    py: Python<'_>,
+    path: &std::path::Path,
+    results: crate::core::pipeline::runtime::LoadResult<Py<PyAny>>,
+) -> PyResult<Project> {
+    use crate::python_errors::project;
+    let adapter = project(py, py.import("roleforge._live"), path)?;
+    let delivered = project(
+        py,
+        PyList::new(py, results.delivered.into_iter().map(|(_, live)| live)),
+        path,
+    )?;
+    // Grouping accesses live Role attributes after successful receipt. A Role
+    // may override those properties: its exceptions must propagate unchanged.
+    let live = adapter
+        .call_method1("_ProjectRoles", (delivered,))?
         .unbind();
     let roles = results
         .roles
         .into_iter()
         .map(|result| Py::new(py, RoleInfo::from(result)))
-        .collect::<PyResult<Vec<_>>>()?;
+        .collect::<PyResult<Vec<_>>>();
+    let roles = project(py, roles, path)?;
     Ok(Project {
-        path,
-        roles: PyTuple::new(py, roles)?.unbind(),
+        path: path.into(),
+        roles: project(py, PyTuple::new(py, roles), path)?.unbind(),
         live,
     })
 }
 
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let error_type = module.py().get_type::<PackagePathResolutionFailed>();
+    error_type.setattr("category", PackagePathFailure::CATEGORY)?;
+    module.add("PackagePathResolutionFailed", error_type)?;
     module.add_function(wrap_pyfunction!(load, module)?)?;
     module.add_class::<Project>()?;
     module.add_class::<RoleInfo>()?;

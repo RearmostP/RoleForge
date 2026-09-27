@@ -1,15 +1,7 @@
 use super::models::CleanRole;
-use crate::core::{
-    bridges::{BridgeError, Bridges},
-    registry::RoleEntry,
-    role_input::RoleInput,
-};
+use crate::core::{bridges::Bridges, registry::RoleEntry, role_input::RoleInput};
 
-#[derive(Debug)]
-pub(crate) enum HandoffError {
-    UnknownBridge(String),
-    Delivery(BridgeError),
-}
+use crate::core::errors::HandoffError;
 
 pub(super) fn deliver<T>(
     bridges: &Bridges<T>,

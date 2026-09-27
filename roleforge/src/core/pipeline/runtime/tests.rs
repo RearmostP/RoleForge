@@ -1,4 +1,20 @@
 use super::*;
+use crate::core::errors::TokenizeError;
+use std::io;
+
+// Production Runtime receives structured events; this adapter preserves the
+// existing presentation integration assertions.
+fn run_file_with_bridges<T>(
+    path: impl AsRef<Path>,
+    registry: &Registry,
+    bridges: &Bridges<T>,
+    output: &mut impl io::Write,
+) -> Result<LoadResult<T>, RuntimeError> {
+    super::run_file_with_bridges(path, registry, bridges, &mut |event| {
+        crate::core::output::report(event, output)
+    })
+}
+
 use crate::core::{
     bridges::{Bridge, BridgeError},
     registry::RoleEntry,
@@ -209,9 +225,10 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
 
 #[test]
 fn stored_registry_can_be_loaded_once_and_reused() {
-    let registry =
-        Registry::load(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"))
-            .unwrap();
+    let registry = Registry::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("roleforge/python/roleforge"),
+    )
+    .unwrap();
     let fixture = TestFile::new(b"@role UnregisteredStage04Fixture\nbody");
     for _ in 0..2 {
         let mut output = Vec::new();
@@ -307,7 +324,7 @@ fn temporary_output_failure_is_returned() {
     .unwrap();
     let fixture = TestFile::new(b"@role Valid\nbody");
     assert!(
-        matches!(run_file(&fixture.0, &registry, &mut BrokenOutput), Err(RuntimeError::DebugOutput(error)) if error.kind() == io::ErrorKind::BrokenPipe)
+        matches!(run_file(&fixture.0, &registry, &mut BrokenOutput), Err(RuntimeError::Output(error)) if error.kind == io::ErrorKind::BrokenPipe)
     );
 }
 
@@ -335,4 +352,185 @@ fn native_results_keep_global_identity_without_reindexing_unknown_roles() {
         result.delivered,
         vec![(0, ("first\n".into(), 0)), (2, ("last".into(), 1))]
     );
+}
+
+#[test]
+fn structured_reporter_observes_unknown_and_resolved_identity_without_presentation() {
+    let fixture = TestFile::new(b"@role Missing\n@role Example\n@role Example\n");
+    let registry = Registry::from_json(
+        Path::new("root"),
+        "{}",
+        r#"{"Example":{"entry":{"via":"probe","target":"opaque"}}}"#,
+    )
+    .unwrap();
+    struct Probe;
+    impl Bridge for Probe {
+        type Live = usize;
+        fn deliver(&self, _: &Path, role: RoleInput) -> Result<usize, BridgeError> {
+            Ok(role.index)
+        }
+    }
+    let mut bridges = Bridges::default();
+    bridges.register("probe", Probe);
+    let mut events = Vec::new();
+    let result = super::run_file_with_bridges(&fixture.0, &registry, &bridges, &mut |event| {
+        let (kind, role) = match event {
+            CoreEvent::UnknownRole { role } => ("unknown", role),
+            CoreEvent::ResolvedRole { role, .. } => ("resolved", role),
+            _ => panic!("unexpected event"),
+        };
+        events.push((
+            kind,
+            role.index,
+            role.role_index,
+            role.source.declaration_line,
+        ));
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(
+        events,
+        vec![
+            ("unknown", 0, 0, 1),
+            ("resolved", 1, 0, 2),
+            ("resolved", 2, 1, 3)
+        ]
+    );
+    assert_eq!(result.delivered, vec![(1, 1), (2, 2)]);
+}
+
+#[test]
+fn structured_conflict_preflight_reports_all_conflicts_and_never_calls_a_bridge() {
+    let fixture = TestFile::new(b"@role Valid\n@role Missing\n@role Shared\n@role Shared\n");
+    let registry = Registry::from_json(Path::new("root"),
+        r#"{"Shared":{"entry":{"via":"a","target":"builtin"}}}"#,
+        r#"{"Shared":{"entry":{"via":"b","target":"dynamic"}},"Valid":{"entry":{"via":"probe","target":"opaque"}}}"#).unwrap();
+    struct Never;
+    impl Bridge for Never {
+        type Live = ();
+        fn deliver(&self, _: &Path, _: RoleInput) -> Result<(), BridgeError> {
+            panic!("preflight must prevent delivery")
+        }
+    }
+    let mut bridges = Bridges::default();
+    bridges.register("probe", Never);
+    let mut events = Vec::new();
+    let result = super::run_file_with_bridges(&fixture.0, &registry, &bridges, &mut |event| {
+        match event {
+            CoreEvent::RoleConflict {
+                role,
+                builtin_entry,
+                dynamic_entry,
+            } => {
+                assert_eq!(builtin_entry.via, "a");
+                assert_eq!(dynamic_entry.via, "b");
+                events.push(Some((role.index, role.role_index)));
+            }
+            CoreEvent::HandoffAborted => events.push(None),
+            _ => panic!("unknown/resolved reporting is suppressed on conflict"),
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(events, vec![Some((2, 0)), Some((3, 1)), None]);
+    assert_eq!(result.roles.len(), 4);
+    assert!(result.delivered.is_empty());
+}
+
+#[test]
+fn delivery_failure_keeps_identity_stops_later_roles_and_preserves_previous_effects() {
+    use std::{cell::RefCell, rc::Rc};
+    struct FailsSecond(Rc<RefCell<Vec<usize>>>);
+    impl Bridge for FailsSecond {
+        type Live = ();
+        fn deliver(&self, _: &Path, role: RoleInput) -> Result<(), BridgeError> {
+            self.0.borrow_mut().push(role.index);
+            if role.role_index == 1 {
+                Err(BridgeError::ReceiverRaised)
+            } else {
+                Ok(())
+            }
+        }
+    }
+    let calls = Rc::new(RefCell::new(Vec::new()));
+    let mut bridges = Bridges::default();
+    bridges.register("probe", FailsSecond(calls.clone()));
+    let registry = Registry::from_json(
+        Path::new("root"),
+        "{}",
+        r#"{"Example":{"entry":{"via":"probe","target":"opaque"}}}"#,
+    )
+    .unwrap();
+    let fixture = TestFile::new(b"@role Example\n@role Missing\n@role Example\n@role Example\n");
+    let mut reported = Vec::new();
+    let result = super::run_file_with_bridges(&fixture.0, &registry, &bridges, &mut |event| {
+        match event {
+            CoreEvent::ResolvedRole { role, .. } | CoreEvent::UnknownRole { role } => {
+                reported.push(role.index)
+            }
+            _ => panic!("unexpected event"),
+        }
+        Ok(())
+    });
+    let Err(RuntimeError::Handoff(failure)) = result else {
+        panic!("expected failed receipt")
+    };
+    assert_eq!(
+        (
+            failure.name.as_str(),
+            failure.index,
+            failure.role_index,
+            failure.declaration_line
+        ),
+        ("Example", 2, 1, 3)
+    );
+    assert_eq!(failure.target, Path::new("root/roles/opaque"));
+    assert_eq!(
+        failure.error,
+        crate::core::errors::HandoffError::Delivery(BridgeError::ReceiverRaised)
+    );
+    assert_eq!(*calls.borrow(), vec![0, 2]);
+    assert_eq!(reported, vec![0, 1, 2]);
+}
+
+#[test]
+fn output_failure_stops_before_current_delivery_without_rolling_back_previous_calls() {
+    use std::{cell::RefCell, rc::Rc};
+    struct Probe(Rc<RefCell<Vec<usize>>>);
+    impl Bridge for Probe {
+        type Live = ();
+        fn deliver(&self, _: &Path, role: RoleInput) -> Result<(), BridgeError> {
+            self.0.borrow_mut().push(role.index);
+            Ok(())
+        }
+    }
+    let fixture = TestFile::new(b"@role Example\n@role Example\n@role Example\n");
+    let registry = Registry::from_json(
+        Path::new("root"),
+        "{}",
+        r#"{"Example":{"entry":{"via":"probe","target":"opaque"}}}"#,
+    )
+    .unwrap();
+    for fail_at in [0, 1] {
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let mut bridges = Bridges::default();
+        bridges.register("probe", Probe(calls.clone()));
+        let result = super::run_file_with_bridges(&fixture.0, &registry, &bridges, &mut |event| {
+            let CoreEvent::ResolvedRole { role, .. } = event else {
+                panic!("unexpected event")
+            };
+            if role.index == fail_at {
+                Err(io::Error::from(io::ErrorKind::BrokenPipe).into())
+            } else {
+                Ok(())
+            }
+        });
+        assert!(matches!(
+            result,
+            Err(RuntimeError::Output(OutputWriteFailed {
+                kind: io::ErrorKind::BrokenPipe
+            }))
+        ));
+        assert_eq!(*calls.borrow(), (0..fail_at).collect::<Vec<_>>());
+    }
 }

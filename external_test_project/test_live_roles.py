@@ -169,7 +169,7 @@ def roleforge_receive(role):
     with Path({str(log)!r}).open("a") as stream:
         stream.write(str(role.role_index))
 ''', encoding="utf-8")
-        with self.assertRaisesRegex(RuntimeError, "ReceiverRaised.*stop here"):
+        with self.assertRaisesRegex(RuntimeError, "ReceiverRaised"):
             self.project("@role Test\n@role Test\n@role Test\n")
         self.assertEqual(log.read_text(), "0")
 
