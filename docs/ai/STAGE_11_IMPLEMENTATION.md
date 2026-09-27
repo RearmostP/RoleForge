@@ -22,7 +22,7 @@ docs/                          תיעוד
 roleforge/core/pipeline/prompts/ היסטוריית פיתוח בלבד
 ```
 
-כל קובצי Rust שהיו תחת `../roleforge` הועברו באותו מבנה יחסי אל `src/`, כולל crate root, Python API, Registry, Bridges, Pipeline ובדיקות הרכיבים. קובצי Python, שני קובצי ה־Registry, Test וסמני תיקיות ה־Roles הועברו אל `python/roleforge/`. נוסף `builtin_roles/__init__.py` כדי לשמר את בסיס היעדים המובנים גם בהתקנה, אף שה־Registry המובנה ריק.
+כל קובצי Rust שהיו תחת `roleforge` הועברו באותו מבנה יחסי אל `src/`, כולל crate root, Python API, Registry, Bridges, Pipeline ובדיקות הרכיבים. קובצי Python, שני קובצי ה־Registry, Test וסמני תיקיות ה־Roles הועברו אל `python/roleforge/`. נוסף `builtin_roles/__init__.py` כדי לשמר את בסיס היעדים המובנים גם בהתקנה, אף שה־Registry המובנה ריק.
 
 פרומפטים ודוחות היסטוריים לא נערכו או הועברו. פרומפט 11 שהיה staged/modified לפני העבודה נשמר, וכן `.idea/` הקיימת. ההרחבה הישנה והמטמון המקומי שלא היו במעקב הועברו אל `target/stage11-legacy-runtime/`; תיקיות מקור שהתפנו הוסרו.
 

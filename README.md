@@ -42,7 +42,7 @@ The repository includes a working [Test Role](roleforge/python/roleforge/roles/T
 - `external_test_project/`: simulated external Python consumer, with user examples and Python-facing tests; see its [README](external_test_project/README.md).
 - `docs/human/`: documentation for users and contributors.
 - [docs/ai/](docs/ai/CORE_IRON_RULES.md): detailed architectural guardrails for AI-assisted development.
-- [Prompt history](docs/roleforge/core/pipeline/prompts/README.md): historical development records, not current usage documentation.
+- [Prompt history](docs/prompts/README.md): the Codex/AI-assisted construction history, collected in one folder with a reading-order index.
 
 Internal Rust unit tests live in subsystem-local `tests.rs` modules compiled only for testing. The external test project is separate from the library runtime.
 

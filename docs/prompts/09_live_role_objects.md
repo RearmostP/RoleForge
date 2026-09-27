@@ -4,15 +4,15 @@ You are continuing development of RoleForge.
 
 Before making any changes, inspect the current repository and read the current architecture documentation, especially:
 
-- `../../../../ai/CORE_IRON_RULES.md`
-- `../../../../ai/STAGE_08_IMPLEMENTATION.md`
-- `../../../../human/en/README.md`
-- `../../../../human/en/CREATING_ROLES.md`
-- `../../../../human/en/IRON_RULES.md`
-- `../../../../human/he/README.md`
-- `../../../../human/he/CREATING_ROLES.md`
-- `../../../../human/he/IRON_RULES.md`
-- `README.md`
+- `../../../../CORE_IRON_RULES.md`
+- `../../../../STAGE_08_IMPLEMENTATION.md`
+- `../../../../../human/en/README.md`
+- `../../../../../human/en/CREATING_ROLES.md`
+- `../../../../../human/en/IRON_RULES.md`
+- `../../../../../human/he/README.md`
+- `../../../../../human/he/CREATING_ROLES.md`
+- `../../../../../human/he/IRON_RULES.md`
+- `../../../../../../README.md`
 - the current Runtime, Handoff, Bridge, Python Bridge, Project, RoleInfo, RoleInput, Registry, and tests.
 
 Treat the current implementation and current architecture documentation as the source of truth.
@@ -458,7 +458,7 @@ docs/human/he/IRON_RULES.md
 docs/ai/CORE_IRON_RULES.md
 ```
 
-Create an appropriate Stage 09 implementation report under `../../../../ai` if that matches the existing documentation convention.
+Create an appropriate Stage 09 implementation report under `../../../..` if that matches the existing documentation convention.
 
 Update:
 

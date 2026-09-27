@@ -31,8 +31,8 @@ Before changing anything, inspect the current repository thoroughly.
 Identify:
 
 - the current Rust crate structure;
-- `../../../../../Cargo.toml`;
-- `../../../../../pyproject.toml`;
+- `../../../../../../Cargo.toml`;
+- `../../../../../../pyproject.toml`;
 - the PyO3 module definition;
 - `../../..`;
 - `../../..`;
@@ -47,7 +47,7 @@ Identify:
 - all code that resolves Role targets;
 - all tests that depend on the current repository layout;
 - documentation that describes the current layout;
-- `../../../../../external_test_project`;
+- `../../../../../../external_test_project`;
 - current Maturin configuration.
 
 Do not assume that the proposed structure below can simply be applied mechanically.
@@ -566,8 +566,8 @@ At completion, report:
 
 1. The final repository layout.
 2. Which files/directories were moved.
-3. Changes made to `../../../../../Cargo.toml`.
-4. Changes made to `../../../../../pyproject.toml`.
+3. Changes made to `../../../../../../Cargo.toml`.
+4. Changes made to `../../../../../../pyproject.toml`.
 5. How runtime package/resource location is now resolved.
 6. Every old `CARGO_MANIFEST_DIR` runtime dependency that was removed or retained, and why.
 7. Any tests changed because of the new layout.

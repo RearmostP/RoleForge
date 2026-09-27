@@ -539,7 +539,11 @@ The Python Bridge uses the existing PyO3 integration and explicit file loading. 
 
 Stage 09 adds an optional target-module `Role` subclass of `roleforge.Role`, constructed by the Bridge with its adapted input. Without that class the Bridge creates a generic live Role. The inherited constructor supplies input fields; `roleforge_receive` initializes Role state, and methods on the class define its API. Receiver return values remain ignored. The Bridge returns an owned PyO3 reference to the same successfully received object; Project retains it. Its input, class, and method globals survive temporary module-binding cleanup. No Role names or method semantics are embedded in Core or the Bridge.
 
-Target load failures, missing receivers, non-callable receivers, and receiver exceptions remain distinct structured failures. Unknown Bridge resolution is an explicit Handoff error. The public Python API raises RuntimeError with Role identity, target and failure category. Delivery stops on the first delivery failure; previous successful calls are not rolled back. This is current behavior, not a final Error Manager policy.
+Target load failures, missing receivers, non-callable receivers, and receiver exceptions remain distinct structured failures. Unknown Bridge resolution is an explicit Handoff error. The public Python API raises RuntimeError with Role identity, target and named
+failure case. It does not retain internal Python exception text or causes.
+Failure to restore the temporary delivery environment after successful receipt
+is `DeliveryCleanupFailed`; an earlier receipt/load failure still takes precedence
+over a secondary cleanup failure. Delivery stops on the first delivery failure; previous successful calls are not rolled back. This is current behavior, not a final Error Manager policy.
 
 Before any target is loaded, Runtime inspects the entire dispatch collection. Any Conflict reports all conflicts and aborts every delivery for that load. Otherwise Unknown Roles are reported and skipped, and resolved Roles are delivered in source order. This remains the temporary Stage 06 reporting policy.
 
@@ -610,7 +614,11 @@ println!("Unknown role: Directory");
 
 It should instead report structured information identifying the condition and relevant Role information. This example establishes the reporting/presentation boundary, not a final event type, exact enum, or transport mechanism.
 
-The future error/event layer may decide how a condition is classified and presented. Do not prematurely decide every severity. In particular, whether an Unknown Role is ultimately an error, warning, or another event category is not permanently established.
+The current Error System provides neutral named errors and `CoreEvent` reports,
+with message definitions separated from Python conversion and console output.
+Runtime emits synchronous reports through a supplied reporter; it does not
+depend on a console writer. See [Error System implementation](ERROR_SYSTEM_IMPLEMENTATION.md).
+Do not prematurely decide every severity. In particular, whether an Unknown Role is ultimately an error, warning, or another event category is not permanently established.
 
 A temporary enum name or test representation does not settle the architecture's severity model. Preserve the routing meaning of Unknown and Conflict without inventing final presentation policy.
 
@@ -637,7 +645,11 @@ This establishes a separation of responsibilities, not the final Error Manager o
 
 Do not automatically merge the future Error Manager and Console Manager into a single giant subsystem responsible for error detection, classification, aggregation, formatting, logging, console rendering, and unrelated orchestration.
 
-Exact error/output architecture will be designed when that stage is reached. Presentation must not acquire responsibility for deciding Role behavior.
+The current minimal output adapter is `roleforge/src/core/output.rs`; it renders
+structured events using the existing text and output timing. Reporter failure
+still stops the current load, including conflict reporting. This preserves the
+existing continuation policy rather than defining a new severity model.
+Presentation must not acquire responsibility for deciding Role behavior.
 
 ## 22. Dynamic Roles are a Core capability
 
@@ -844,7 +856,7 @@ The currently completed Core development stages are recorded here for context:
 
 The Main Parser was intentionally removed from the Core architecture. It must not be restored by interpreting an old stage plan as an unfulfilled architectural requirement.
 
-Historical prompt files are development records, not the architectural source of truth. Do not rewrite their contents merely because later decisions refined the architecture.
+Historical prompt files are collected in [docs/prompts/](../prompts/README.md), with a reading-order index. They are development records, not the architectural source of truth. Do not rewrite their contents merely because later decisions refined the architecture.
 
 Small corrections to a completed stage do not automatically create a new numbered stage. Future stage numbering must follow explicitly agreed development planning, not assumptions inferred from historical prompts.
 
@@ -862,7 +874,7 @@ Small corrections to a completed stage do not automatically create a new numbere
 | Alias and named-instance syntax | Do not extend tokenizer syntax or define inheritance, uniqueness, registry behavior, or API exposure for it. |
 | Final Role registration/install/remove API | Dynamic registration remains a capability; install, register, unregister, remove, and location-override APIs are not finalized. |
 | Exact error severity model | Resolution outcomes do not settle severity; Unknown is not permanently classified. |
-| Final Error Manager architecture | Preserve structured reporting without inventing the final manager design. |
+| Future Error System extensions | Explicit error definitions and synchronous structured reporting are implemented; severity and any larger manager remain undecided. |
 | Final Console Manager architecture | Preserve dedicated presentation without merging every concern into one subsystem. |
 | `interaction_mode` metadata | Conceptual interaction styles do not establish a metadata contract. |
 | Advanced source mapping | Retain useful source metadata and newline structure without speculative mapping infrastructure. |
@@ -913,4 +925,4 @@ This is a quick pre-modification checklist for AI coding agents. It does not rep
 
 ## Source and installed runtime layout (Stage 11)
 
-`roleforge/src/` contains Rust implementation and subsystem-local `tests.rs` files. `roleforge/python/roleforge/` contains the installed Python runtime and resources. `external_test_project/` remains an external consumer simulation; `docs/` contains documentation. Historical prompts remain under `../roleforge`, outside both runtime packaging and Rust implementation. A Wheel contains Python runtime files, the native extension, and packaging metadata, never Rust sources or development prompts. Registry edits and Role management remain manual. Source locations used by Rust tests are test fixtures only.
+`roleforge/src/` contains Rust implementation and subsystem-local `tests.rs` files. `roleforge/python/roleforge/` contains the installed Python runtime and resources. `external_test_project/` remains an external consumer simulation; `docs/` contains documentation. Historical prompts are collected in `docs/prompts/`, outside both runtime packaging and Rust implementation. A Wheel contains Python runtime files, the native extension, and packaging metadata, never Rust sources or development prompts. Registry edits and Role management remain manual. Source locations used by Rust tests are test fixtures only.
