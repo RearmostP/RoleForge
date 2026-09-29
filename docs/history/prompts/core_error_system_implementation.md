@@ -3,7 +3,7 @@
 Source: the user's implementation request in the Codex conversation, archived on
 2026-09-27. The request body below is preserved from that message. This filename
 is an archive label, not a newly assigned development stage. Actual implementation
-and verification are recorded in [the implementation report](../ai/ERROR_SYSTEM_IMPLEMENTATION.md).
+and verification are recorded in [the implementation report](../../ai/ERROR_SYSTEM_IMPLEMENTATION.md).
 
 ---
 

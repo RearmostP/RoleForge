@@ -157,6 +157,23 @@ For advanced implementations managing their own representation, `role.role_input
 - Full-line `#` comments, including indented ones, are removed while preserving their newline structure. Inline `#` in bodies remains untouched. A declaration can have an inline comment, as in `@role Test # comment`.
 - Empty bodies and repeated names are allowed. Core is not quote-aware within Role bodies; a column-0 declaration is still a boundary there.
 
+### Who interprets comments in the body?
+
+RoleForge does not map or learn each Role's comment syntax. Before delivering the body, Core applies one shared, simple rule: a line whose first non-whitespace character is `#` is removed, retaining only its line ending. This happens regardless of the language defined by the Role.
+
+For example, given this source:
+
+```text
+@role Test # declaration comment
+# full-line comment
+value = 123 # text retained in the body
+// text retained in the body
+```
+
+The Role receives a body starting with a blank line, followed by the two content lines exactly as written. The declaration comment is neither part of the Role name nor part of the body. Core does not decide whether an inline `#` or `//` is a comment, data, or invalid syntax: that interpretation belongs to the Role. The same applies to other syntax such as `/* ... */`; Core does not recognize it as a comment block.
+
+The rule also applies inside what the Role's language considers a multiline string or comment block: a line beginning with `#` after whitespace is still removed. Likewise, a column-zero `@role Name` declaration still starts a new Role. Account for this processing when designing your Role's language; `role.body` contains the processed text, not a complete raw copy of the source.
+
 ## Loading limits and diagnosing failures
 
 The Bridge loads an explicit file in the current Python process. It loads source afresh for each delivery, uses the full canonical path to avoid basename collisions, and restores its temporary `sys.modules` binding afterward. Do not rely on persistent module globals across deliveries. Live instances retain their input, class, and method globals after `load()` returns, including when an instance is retained after Project is released. It does not discover packages, search for Roles, or add target directories to `sys.path`.

@@ -13,8 +13,8 @@ requests use descriptive filenames and do not create new numbered stages.
 These are historical requests, not instructions to rerun and not proof that every
 requested detail was implemented. In particular, superseded error names,
 internal-stage metadata, and old paths remain visible as part of the history.
-For current behavior, use the code, tests, [Core Iron Rules](../ai/CORE_IRON_RULES.md),
-[Error System Iron Rules](../ai/ERROR_SYSTEM_IRON_RULES.md), and implementation reports.
+For current behavior, use the code, tests, [Core Iron Rules](../../ai/CORE_IRON_RULES.md),
+[Error System Iron Rules](../../ai/ERROR_SYSTEM_IRON_RULES.md), and implementation reports.
 The adjacent [Error System rules reference](ERROR_SYSTEM_IRON_RULES.md) is a
 current reference copy retained for the original prompts; it is not another
 prompt or an independent authority.
@@ -63,17 +63,14 @@ conversation rather than reconstructed as new historical implementation prompts.
 
 ## Implementation evidence
 
-Reports and current architecture stay under `docs/ai/`; user guides stay under
-`docs/human/`. This folder is the single entry point for the prompt history.
+Current architecture and implementation stay under `docs/ai/`; historical reports
+live in [docs/history](../README.md), and user guides in `docs/human/`.
+This folder is the single entry point for the original prompt history.
 
-- [Stage 08 report](../ai/STAGE_08_IMPLEMENTATION.md)
-- [Stage 09 report](../ai/STAGE_09_IMPLEMENTATION.md)
-- [Stage 10 report](../ai/STAGE_10_IMPLEMENTATION.md)
-- [Stage 11 report](../ai/STAGE_11_IMPLEMENTATION.md)
-- [Original diagnostic inventory](../ai/system_message_mapping/event_and_error_inventory.md)
-- [D001 implementation checkpoint](../ai/D001_IMPLEMENTATION.md)
-- [Complete Error System implementation and validation](../ai/ERROR_SYSTEM_IMPLEMENTATION.md)
-- [Error metadata inventory](../ai/system_message_mapping/error_metadata_inventory.md)
+- [Original diagnostic inventory](../event_and_error_inventory.md)
+- [D001 implementation checkpoint](../D001_IMPLEMENTATION.md)
+- [Complete Error System implementation and validation](../../ai/ERROR_SYSTEM_IMPLEMENTATION.md)
+- [Error metadata inventory](../../ai/system_message_mapping/error_metadata_inventory.md)
 
 The repository archive contains 16 pre-existing prompt files plus three user
 requests preserved from the current conversation. It is not a transcript of

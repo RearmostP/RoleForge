@@ -1,5 +1,7 @@
 # D001 implementation and verification
 
+> Historical snapshot. Statements and line numbers describe the original review date. For current behavior, see [the current implementation](../ai/ERROR_SYSTEM_IMPLEMENTATION.md).
+
 Implemented on 2026-09-26 according to prompt 03. D001 is one inventory observation mapped to one error type, not an error code. D002 and all other inventory cases remain pending.
 
 ## Final contract

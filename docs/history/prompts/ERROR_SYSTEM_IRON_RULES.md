@@ -1,4 +1,4 @@
-> Reference copy for the Error System prompts. The canonical source is [docs/ai/ERROR_SYSTEM_IRON_RULES.md](../ai/ERROR_SYSTEM_IRON_RULES.md). Edit the canonical document first, then refresh this copy; this copy does not establish separate rules.
+> Reference copy for the Error System prompts. The canonical source is [docs/ai/ERROR_SYSTEM_IRON_RULES.md](../../ai/ERROR_SYSTEM_IRON_RULES.md). Edit the canonical document first, then refresh this copy; this copy does not establish separate rules.
 
 # RoleForge Core Error System — Iron Rules
 
@@ -14,7 +14,7 @@ Read it using three categories:
 
 > An undecided detail is not a decision.
 
-These rules complement [Core Iron Rules](../ai/CORE_IRON_RULES.md), especially its Core responsibility boundary and its rules for structured reporting and output presentation. If future work appears to require changing an established architectural rule, identify the conflict explicitly. Do not silently reinterpret either document.
+These rules complement [Core Iron Rules](../../ai/CORE_IRON_RULES.md), especially its Core responsibility boundary and its rules for structured reporting and output presentation. If future work appears to require changing an established architectural rule, identify the conflict explicitly. Do not silently reinterpret either document.
 
 ## 2. The Error System belongs to Core
 
@@ -177,7 +177,7 @@ The current internal API consists of explicit error types exported from
 `roleforge/src/core/errors/mod.rs`, focused `Display` implementations, and a
 synchronous `CoreEvent` reporter supplied to Runtime. It has no manager object.
 Python exception conversion belongs to the Python boundary; the neutral error
-definitions contain no PyO3 values. See [current implementation](../ai/ERROR_SYSTEM_IMPLEMENTATION.md).
+definitions contain no PyO3 values. See [current implementation](../../ai/ERROR_SYSTEM_IMPLEMENTATION.md).
 
 ## 12. Design errors incrementally from the inventory
 

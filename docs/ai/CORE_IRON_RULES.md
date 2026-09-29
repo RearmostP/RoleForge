@@ -856,7 +856,7 @@ The currently completed Core development stages are recorded here for context:
 
 The Main Parser was intentionally removed from the Core architecture. It must not be restored by interpreting an old stage plan as an unfulfilled architectural requirement.
 
-Historical prompt files are collected in [docs/prompts/](../prompts/README.md), with a reading-order index. They are development records, not the architectural source of truth. Do not rewrite their contents merely because later decisions refined the architecture.
+Historical prompt files are collected in [docs/history/prompts/](../history/prompts/README.md), with a reading-order index. They are development records, not the architectural source of truth. Do not rewrite their contents merely because later decisions refined the architecture.
 
 Small corrections to a completed stage do not automatically create a new numbered stage. Future stage numbering must follow explicitly agreed development planning, not assumptions inferred from historical prompts.
 
@@ -925,4 +925,4 @@ This is a quick pre-modification checklist for AI coding agents. It does not rep
 
 ## Source and installed runtime layout (Stage 11)
 
-`roleforge/src/` contains Rust implementation and subsystem-local `tests.rs` files. `roleforge/python/roleforge/` contains the installed Python runtime and resources. `external_test_project/` remains an external consumer simulation; `docs/` contains documentation. Historical prompts are collected in `docs/prompts/`, outside both runtime packaging and Rust implementation. A Wheel contains Python runtime files, the native extension, and packaging metadata, never Rust sources or development prompts. Registry edits and Role management remain manual. Source locations used by Rust tests are test fixtures only.
+`roleforge/src/` contains Rust implementation and subsystem-local `tests.rs` files. `roleforge/python/roleforge/` contains the installed Python runtime and resources. `external_test_project/` remains an external consumer simulation; `docs/` contains documentation. Historical prompts are collected in `docs/history/prompts/`, outside both runtime packaging and Rust implementation. A Wheel contains Python runtime files, the native extension, and packaging metadata, never Rust sources or development prompts. Registry edits and Role management remain manual. Source locations used by Rust tests are test fixtures only.

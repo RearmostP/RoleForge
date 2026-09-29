@@ -118,4 +118,4 @@ python -m unittest discover -s external_test_project -v
 
 The Python handoff tests temporarily replace the imported package's Registry fixtures and restore their original bytes. Do not run them concurrently with other loads or tests using those files.
 
-Read the [human Iron Rules](IRON_RULES.md) before changing architecture. The [AI Iron Rules](../../ai/CORE_IRON_RULES.md) provide deeper constraints. The [Stage 08 report](../../ai/STAGE_08_IMPLEMENTATION.md) records that implementation checkpoint, while the [prompt index](../../prompts/README.md) explains the historical sequence. Historical prompts do not override current documentation or approved architectural rules.
+Read the [human Iron Rules](IRON_RULES.md) before changing architecture. The [AI Iron Rules](../../ai/CORE_IRON_RULES.md) provide deeper constraints. The [historical reports](../../history/README.md) preserve earlier implementation checkpoints, while the [prompt index](../../history/prompts/README.md) explains the historical sequence. Historical prompts do not override current documentation or approved architectural rules.

@@ -42,10 +42,11 @@ The repository includes a working [Test Role](roleforge/python/roleforge/roles/T
 - `external_test_project/`: simulated external Python consumer, with user examples and Python-facing tests; see its [README](external_test_project/README.md).
 - `docs/human/`: documentation for users and contributors.
 - [docs/ai/](docs/ai/CORE_IRON_RULES.md): detailed architectural guardrails for AI-assisted development.
-- [Prompt history](docs/prompts/README.md): the Codex/AI-assisted construction history, collected in one folder with a reading-order index.
+- [Historical reports](docs/history/README.md): earlier implementation checkpoints and diagnostic inventories.
+- [Prompt history](docs/history/prompts/README.md): the Codex/AI-assisted construction history, collected in one folder with a reading-order index.
 
 Internal Rust unit tests live in subsystem-local `tests.rs` modules compiled only for testing. The external test project is separate from the library runtime.
 
 Registry files and relative Role targets resolve from the installed Python package. Maturin builds the Wheel from `roleforge/python/`; Rust source and historical prompts stay outside the runtime package. Live access supports `project.test`, `project.test[1]`, and exact-name `project.get_role("Test", 1)`. `project.roles` remains discovery metadata. Automatic Role installation and a finalized execution lifecycle remain open.
 
-Build a release Wheel with `maturin build --release`, install the generated file from `target/wheels/` with `python -m pip install --force-reinstall <wheel-path>`, and run the consumer example from outside the repository. No editable install or repository `PYTHONPATH` is needed. See the [Stage 11 report](docs/ai/STAGE_11_IMPLEMENTATION.md).
+Build a release Wheel with `maturin build --release`, install the generated file from `target/wheels/` with `python -m pip install --force-reinstall <wheel-path>`, and run the consumer example from outside the repository. No editable install or repository `PYTHONPATH` is needed. See the [runtime layout reference](docs/ai/CORE_IRON_RULES.md#source-and-installed-runtime-layout-stage-11).

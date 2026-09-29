@@ -1,12 +1,14 @@
 # מיפוי האירועים והשגיאות — RoleForge
 
+> Historical snapshot. Statements and line numbers describe the original review date. For current behavior, see [the current implementation](../ai/ERROR_SYSTEM_IMPLEMENTATION.md).
+
 תאריך: 22 בספטמבר 2026. מיפוי לפי פרומפט 12, על בסיס הקוד המקומי הפעיל.
 
 ## 1. היקף, שיטה ותוצאה
 
 נמצאו **54 נקודות משמעותיות במלאי**, המסומנות D001–D054. הספירה כוללת זיהוי תנאים, גבולות המרה והפצה, החלטות המשך, פלט, fallback והשמטת מידע. אין מדובר ב־54 סוגי שגיאה עצמאיים: אותו תנאי יכול להיות מזוהה במקום אחד ומוצג במקום אחר, ואלה מתועדים בנפרד. פעולות סמוכות בעלות אותו ייצוג ואותה השפעה מאוגדות בשורה אחת, עם פירוט מיקומן. המזהים זמניים לצורכי הדיון בלבד, ואינם הצעה לקודי שגיאה.
 
-נסקרו כל קובצי Rust ו־Python הפעילים תחת `roleforge/src/`, `roleforge/python/roleforge/` ו־`external_test_project/`, לרבות בדיקות קיימות, קובצי הרישום ודוגמאות המקור. הנתיבים הללו הם המיקום הנוכחי של `src/` ושל `python/roleforge/` המוזכרים בפרומפט. נבדקו גם הגדרות האריזה ו־[כללי הארכיטקטורה](../CORE_IRON_RULES.md), בעיקר סעיפים 6, 15–21 ו־23–24. דוחות היסטוריים אינם בסיס לקביעת התנהגות.
+נסקרו כל קובצי Rust ו־Python הפעילים תחת `roleforge/src/`, `roleforge/python/roleforge/` ו־`external_test_project/`, לרבות בדיקות קיימות, קובצי הרישום ודוגמאות המקור. הנתיבים הללו הם המיקום הנוכחי של `src/` ושל `python/roleforge/` המוזכרים בפרומפט. נבדקו גם הגדרות האריזה ו־[כללי הארכיטקטורה](../ai/CORE_IRON_RULES.md), בעיקר סעיפים 6, 15–21 ו־23–24. דוחות היסטוריים אינם בסיס לקביעת התנהגות.
 
 זהו **ניתוח סטטי של הקוד ושל הבדיקות הקיימות**; לא הורצו בדיקות בזמן הכנת הדוח. לפיכך אזכור בדיקה בהמשך מציין ראיה כתובה להתנהגות המצופה, ולא תוצאת הרצה חדשה. לא שונו קוד, רישומים או התנהגות. הדוח אינו קובע חומרה עתידית ואינו מתכנן מערכת Error/Event חדשה.
 
@@ -26,21 +28,21 @@
 
 | קיצור | קובץ |
 |---|---|
-| API | [roleforge/src/python_api.rs](../../../roleforge/src/python_api.rs) |
-| Registry | [roleforge/src/core/registry.rs](../../../roleforge/src/core/registry.rs) |
-| Loader | [roleforge/src/core/pipeline/loader.rs](../../../roleforge/src/core/pipeline/loader.rs) |
-| Scanner | [roleforge/src/core/pipeline/tokenizer/role_scanner.rs](../../../roleforge/src/core/pipeline/tokenizer/role_scanner.rs) |
-| Tokenizer | [roleforge/src/core/pipeline/tokenizer/tokenizer.rs](../../../roleforge/src/core/pipeline/tokenizer/tokenizer.rs) |
-| Dispatcher | [roleforge/src/core/pipeline/dispatcher.rs](../../../roleforge/src/core/pipeline/dispatcher.rs) |
-| Runtime | [roleforge/src/core/pipeline/runtime.rs](../../../roleforge/src/core/pipeline/runtime.rs) |
-| Handoff | [roleforge/src/core/pipeline/handoff.rs](../../../roleforge/src/core/pipeline/handoff.rs) |
-| Bridges | [roleforge/src/core/bridges/mod.rs](../../../roleforge/src/core/bridges/mod.rs) |
-| PythonBridge | [roleforge/src/core/bridges/python.rs](../../../roleforge/src/core/bridges/python.rs) |
-| Debug | [roleforge/src/core/pipeline/final_core_debug.rs](../../../roleforge/src/core/pipeline/final_core_debug.rs) |
-| Live | [roleforge/python/roleforge/_live.py](../../../roleforge/python/roleforge/_live.py) |
-| Init | [roleforge/python/roleforge/__init__.py](../../../roleforge/python/roleforge/__init__.py) |
-| TestRole | [roleforge/python/roleforge/roles/Test/main.py](../../../roleforge/python/roleforge/roles/Test/main.py) |
-| Example | [external_test_project/main.py](../../../external_test_project/main.py) |
+| API | [roleforge/src/python_api.rs](../../roleforge/src/python_api.rs) |
+| Registry | [roleforge/src/core/registry.rs](../../roleforge/src/core/registry.rs) |
+| Loader | [roleforge/src/core/pipeline/loader.rs](../../roleforge/src/core/pipeline/loader.rs) |
+| Scanner | [roleforge/src/core/pipeline/tokenizer/role_scanner.rs](../../roleforge/src/core/pipeline/tokenizer/role_scanner.rs) |
+| Tokenizer | [roleforge/src/core/pipeline/tokenizer/tokenizer.rs](../../roleforge/src/core/pipeline/tokenizer/tokenizer.rs) |
+| Dispatcher | [roleforge/src/core/pipeline/dispatcher.rs](../../roleforge/src/core/pipeline/dispatcher.rs) |
+| Runtime | [roleforge/src/core/pipeline/runtime.rs](../../roleforge/src/core/pipeline/runtime.rs) |
+| Handoff | [roleforge/src/core/pipeline/handoff.rs](../../roleforge/src/core/pipeline/handoff.rs) |
+| Bridges | [roleforge/src/core/bridges/mod.rs](../../roleforge/src/core/bridges/mod.rs) |
+| PythonBridge | [roleforge/src/core/bridges/python.rs](../../roleforge/src/core/bridges/python.rs) |
+| Debug | `roleforge/src/core/pipeline/final_core_debug.rs` (historical path, since replaced) |
+| Live | [roleforge/python/roleforge/_live.py](../../roleforge/python/roleforge/_live.py) |
+| Init | [roleforge/python/roleforge/__init__.py](../../roleforge/python/roleforge/__init__.py) |
+| TestRole | [roleforge/python/roleforge/roles/Test/main.py](../../roleforge/python/roleforge/roles/Test/main.py) |
+| Example | [external_test_project/main.py](../../external_test_project/main.py) |
 
 ## 3. המלאי המלא
 
