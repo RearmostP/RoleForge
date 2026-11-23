@@ -84,6 +84,30 @@ project.get_role("Test", 1).hello()  # Exact-name access.
 
 אלו נתוני גילוי וניתוב, ולא מופעי Role שאפשר להפעיל. הם גם נפרדים מהמופע החי שמתאים את `RoleInput` עבור ה־receiver: שם מידע המקור נמצא תחת `role.source`. ברשומה שנפתרה, `entry` הוא נתיב היעד שנפתר; ברשומה עם קונפליקט זמינים שני הנתיבים המתנגשים. שדות נתיב שאינם רלוונטיים מכילים `None`.
 
+## ה־Role המובנה של Tailscale
+
+אין צורך לרשום את השם ידנית: `Tailscale` הוא Role מובנה. גוף ה־Role מפוענח בעת טעינת קובץ ה־`.rfg`, אך הטעינה עצמה אינה מתחברת ל־Tailscale.
+
+```text
+@role Tailscale
+env_file = "./.env"
+settings.hostname = "example-device"
+settings.auth_key = "REPLACE_WITH_A_REAL_AUTH_KEY"
+settings.state_dir = ".roleforge/tailscale"
+```
+
+`env_file` אופציונלי. נתיבים יחסיים של `env_file` ושל `settings.state_dir` נפתרים יחסית ל־`role.source.path.parent`. המפתחות בקובץ `.env` הם `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY` ו־`TAILSCALE_STATE_DIR`; כל מפתח כזה דורס רק את הערך הישיר התואם, ומשתני סביבה לא קשורים אינם נקראים. `hostname`, `auth_key` ו־`state_dir` כולם חובה. שמרו מפתחות אמיתיים ב־`.env`, הוסיפו אותו ל־`.gitignore`, ולעולם אל תכללו או תדפיסו אותו בלוגים.
+
+```python
+status = project.tailscale.status()      # אינה מפעילה את ה־helper
+status = project.tailscale.connect()     # מפעילה וממתינה לחיבור
+status = project.tailscale.disconnect()  # סוגרת את צומת tsnet בבטחה
+```
+
+`status()` מחזירה `state`, `hostname`, `tailscale_ips` ו־`dns_name`. קריאות חוזרות של `connect()` משתמשות באותו helper חי; לאחר `disconnect()` אפשר לקרוא ל־`connect()` שוב ולהתחיל תהליך חדש. כל מופע מקבל תיקיית state מבודדת באמצעות `role_index`. שגיאות תצורה, הפעלה, timeout, פרוטוקול ויציאה בלתי צפויה מיוצגות בחריגי Python ייעודיים.
+
+ה־helper המוקדם כולל בינארים ל־Windows amd64, Linux amd64 ו־Linux arm64. Role זה מטמיע צומת באמצעות `tsnet`; הוא אינו מדליק או מכבה את המחשב, VPN ברמת המערכת או דורש שירות `tailscaled` נפרד או CLI של Tailscale.
+
 ## ניתוב ושגיאות במימוש הנוכחי
 
 | מצב | ההתנהגות של load כיום |
@@ -103,7 +127,7 @@ project.get_role("Test", 1).hello()  # Exact-name access.
 
 טרם מומשו או הוגדרו סופית: מסירה ל־Rust, Bridges נוספים, מחזור חיים של `start()` בניהול Core, aliases ושמות מופעים, API להתקנה ולהסרה של Roles, ו־Error/Console Managers סופיים. הארכיטקטורה מאפשרת הוספת Bridges בעתיד, אבל אינה מבטיחה מנגנון מסוים עבורם.
 
-ה־Registry של ה־Roles המובנים ריק כרגע. `roleforge/python/roleforge/builtin_roles/` משמש בסיס ליעדים מובנים; `Test` הוא Role דינמי לצורכי פיתוח. Bridge מובנה ו־Role מובנה הם שני מושגים שונים.
+ה־Registry של ה־Roles המובנים כולל את `Tailscale`; `roleforge/python/roleforge/builtin_roles/` מכיל יעדים מובנים. `Test` נשאר Role דינמי לצורכי פיתוח. Bridge מובנה ו־Role מובנה הם שני מושגים שונים.
 
 קוד Rust נמצא ב־`roleforge/src/`, חבילת זמן הריצה ב־`roleforge/python/roleforge/`, והתיעוד ב־`docs/`. אחסון ה־Registry ובסיסי היעדים נפתרים ביחס לחבילת `roleforge` המותקנת. בונים באמצעות `maturin build --release`, ומתקינים את ה־Wheel שנוצר ב־`target/wheels/` באמצעות `python -m pip install --force-reinstall <wheel-path>`. את אימות ההפצה מריצים מחוץ לריפו, ללא התקנה editable או `PYTHONPATH` לריפו.
 

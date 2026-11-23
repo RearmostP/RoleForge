@@ -1,1 +1,8 @@
-{}
+{
+  "Tailscale": {
+    "entry": {
+      "via": "python",
+      "target": "Tailscale/main.py"
+    }
+  }
+}

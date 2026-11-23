@@ -6,6 +6,7 @@ build-backend = "maturin"
 name = "roleforge"
 requires-python = ">=3.10"
 dynamic = ["version"]
+dependencies = ["python-dotenv>=1,<2"]
 
 [tool.maturin]
 bindings = "pyo3"

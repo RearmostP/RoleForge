@@ -82,6 +82,30 @@ These objects remain usable after loading. Name plus Core-assigned `role_index` 
 
 These records describe discovery and routing. They are not executable Role instances and are distinct from the live object adapting `RoleInput` for a receiver: source information there is nested under `role.source`. `entry` is the resolved target path for a resolved record; conflicting records expose both paths instead. Inapplicable paths are `None`.
 
+## Built-in Tailscale Role
+
+Registering a Role is not required; `Tailscale` is built in. The body is parsed only when RoleForge loads the `.rfg`; loading does not start Tailscale.
+
+```text
+@role Tailscale
+env_file = "./.env"
+settings.hostname = "example-device"
+settings.auth_key = "REPLACE_WITH_A_REAL_AUTH_KEY"
+settings.state_dir = ".roleforge/tailscale"
+```
+
+`env_file` is optional. Relative `env_file` and `settings.state_dir` paths resolve beside `role.source.path.parent`. The `.env` keys `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, and `TAILSCALE_STATE_DIR` replace matching direct settings; unrelated process environment variables are ignored. `hostname`, `auth_key`, and `state_dir` are all required. Keep real keys in `.env`, add it to `.gitignore`, and never commit or log a key.
+
+```python
+status = project.tailscale.status()      # Does not start the helper
+status = project.tailscale.connect()     # Starts, connects, and waits for readiness
+status = project.tailscale.disconnect()  # Stops the embedded node safely
+```
+
+`status()` returns `state`, `hostname`, `tailscale_ips`, and `dns_name`. Repeated `connect()` calls reuse the live helper; `disconnect()` then permits a later fresh connection. Multiple occurrences receive isolated state directories derived from `role_index`. Configuration, startup, timeout, protocol, and unexpected-helper-exit failures use dedicated Python exceptions.
+
+Precompiled helpers are included for Windows amd64, Linux amd64, and Linux arm64. This Role embeds a node with `tsnet`; it does not enable or disable this computer, a system-wide Tailscale VPN, or require a separately running `tailscaled` or Tailscale CLI.
+
 ## Routing and failures today
 
 | Situation | Current load behavior |
@@ -101,7 +125,7 @@ Implemented: Rust Loader, Main Tokenizer, Registry, Dispatcher, Runtime, preflig
 
 Not implemented or not finalized: Rust Role delivery, other Bridges, a Core-managed `start()` lifecycle, aliases/named instances, Role install/remove APIs, and final Error/Console Managers. Additional Bridges are possible architecturally; their mechanisms are not promises or settled designs.
 
-The built-in Role Registry is currently empty. `roleforge/python/roleforge/builtin_roles/` reserves the built-in target base; `Test` is a dynamic development Role. A built-in Bridge and a built-in Role are different concepts.
+The built-in Role Registry includes `Tailscale`; `roleforge/python/roleforge/builtin_roles/` contains built-in targets. `Test` remains a dynamic development Role. A built-in Bridge and a built-in Role are different concepts.
 
 Rust implementation lives under `roleforge/src/`, Python runtime files under `roleforge/python/roleforge/`, and documentation under `docs/`. At runtime, Registry storage and target bases resolve from the installed `roleforge` package. Build with `maturin build --release` and install the generated Wheel from `target/wheels/` using `python -m pip install --force-reinstall <wheel-path>`. Verify it from outside the repository without an editable install or repository `PYTHONPATH`.
 
