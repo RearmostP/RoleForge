@@ -22,7 +22,7 @@ settings.state_dir = ".roleforge/tailscale"
 
 Matching `.env` values override direct `.rfg` values. Unrelated environment variables are ignored. `hostname`, `auth_key`, and `state_dir` are required after merging.
 
-If `env_file` is specified but missing or unreadable, loading raises `TailscaleConfigurationError`. Unknown or malformed settings raise a configuration error identifying the Tailscale Role and line/key. Real auth keys belong only in an ignored `.env` file; never commit or log them.
+If `env_file` is specified but missing or unreadable, calling `connect()` raises `TailscaleConfigurationError`. Unknown or malformed settings also raise a configuration error identifying the Tailscale Role and line/key. Real auth keys belong only in an ignored `.env` file; never commit or log them.
 
 ## Python API
 
