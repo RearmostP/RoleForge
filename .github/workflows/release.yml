@@ -1,0 +1,91 @@
+name: Build and publish GitHub Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-wheels:
+    name: Build ${{ matrix.name }} Wheel
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - name: Linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: Linux-ARM64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip maturin
+
+      - name: Build Go helper binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd helper
+          go mod download
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o ../roleforge/python/roleforge/builtin_roles/Tailscale/bin/windows-amd64/roleforge-tailscale.exe ./cmd/roleforge-tailscale
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o ../roleforge/python/roleforge/builtin_roles/Tailscale/bin/linux-amd64/roleforge-tailscale ./cmd/roleforge-tailscale
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o ../roleforge/python/roleforge/builtin_roles/Tailscale/bin/linux-arm64/roleforge-tailscale ./cmd/roleforge-tailscale
+
+      - name: Build native Wheel
+        run: maturin build --release --target ${{ matrix.target }} --interpreter python
+
+      - name: Verify packaged helper binaries
+        shell: bash
+        run: python scripts/verify_roleforge_wheel.py '${{ matrix.target }}'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-wheel
+          path: target/wheels/*.whl
+
+  publish-release:
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-wheel'
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            TAG="v$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
+          fi
+          gh release create "$TAG" dist/*.whl --repo "$GITHUB_REPOSITORY" --title "RoleForge $TAG" --notes-file docs/release-template.md --verify-tag
