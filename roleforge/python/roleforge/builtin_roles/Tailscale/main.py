@@ -5,6 +5,7 @@ import queue
 import subprocess
 import threading
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import dotenv_values
 
@@ -17,6 +18,14 @@ class TailscaleError(RuntimeError):
 
 class TailscaleConfigurationError(TailscaleError):
     """Malformed or incomplete Tailscale configuration."""
+
+
+class TailscaleConnectionError(TailscaleError):
+    """The Tailscale node could not connect or become ready."""
+
+
+class TailscaleProxyError(TailscaleError):
+    """The tailnet proxy could not start or stop safely."""
 
 
 class TailscaleHelperStartupError(TailscaleError):
@@ -35,7 +44,8 @@ class TailscaleHelperExitError(TailscaleError):
     """The Tailscale helper exited unexpectedly."""
 
 
-_ALLOWED_SETTINGS = {"hostname", "auth_key", "state_dir"}
+_ALLOWED_CONNECT_SETTINGS = {"hostname", "auth_key", "state_dir"}
+_ALLOWED_PROXY_SETTINGS = {"target", "listen_port"}
 
 
 def _config_error(role, line, message):
@@ -46,40 +56,61 @@ def _config_error(role, line, message):
 
 def _parse_value(text, role, line):
     text = text.strip()
-    if not text:
-        raise _config_error(role, line, "a setting value cannot be empty")
     if text[0:1] in ('"', "'"):
         quote = text[0]
         if len(text) < 2 or text[-1] != quote:
             raise _config_error(role, line, "malformed quoted value")
         return text[1:-1]
+    if not text:
+        raise _config_error(role, line, "a setting value cannot be empty")
     if " " in text:
         return text
     return text
 
 
 def _parse_body(role):
-    settings = {}
+    connect = {}
+    proxy = {}
     env_file = None
     base = role.source.path.resolve().parent
+    section = None
+
     for offset, raw in enumerate(role.body.splitlines(), start=1):
         line = role.source.declaration_line + offset
         stripped = raw.strip()
-        if not stripped or stripped.startswith("#"):
+        if not stripped or stripped.startswith("#") or stripped == "@end":
+            continue
+        if stripped == "connect.settings {":
+            section = "connect"
+            continue
+        if stripped == "proxy.settings {":
+            section = "proxy"
+            continue
+        if stripped == "}":
+            section = None
             continue
         if "=" not in raw:
             raise _config_error(role, line, "malformed configuration line")
         key, value = (part.strip() for part in raw.split("=", 1))
         value = _parse_value(value, role, line)
-        if key == "env_file":
-            env_file = value
-        elif key.startswith("settings."):
-            setting = key[len("settings."):]
-            if setting not in _ALLOWED_SETTINGS:
-                raise _config_error(role, line, "unknown settings key {!r}".format(setting))
-            settings[setting] = value
+        if section is None:
+            if key == "env_file":
+                env_file = value
+            elif key.startswith("settings."):
+                setting = key[len("settings."):]
+                if setting not in _ALLOWED_CONNECT_SETTINGS:
+                    raise _config_error(role, line, "unknown settings key {!r}".format(setting))
+                connect[setting] = value
+            else:
+                raise _config_error(role, line, "unknown configuration key {!r}".format(key))
+        elif section == "connect":
+            if key not in _ALLOWED_CONNECT_SETTINGS:
+                raise _config_error(role, line, "unknown connect.settings key {!r}".format(key))
+            connect[key] = value
         else:
-            raise _config_error(role, line, "unknown configuration key {!r}".format(key))
+            if key not in _ALLOWED_PROXY_SETTINGS:
+                raise _config_error(role, line, "unknown proxy.settings key {!r}".format(key))
+            proxy[key] = value
 
     if env_file is not None:
         env_path = Path(env_file)
@@ -97,28 +128,74 @@ def _parse_body(role):
                 "Tailscale configuration error: env_file could not be read: {}".format(env_path)
             )
         mapping = {
-            "TAILSCALE_HOSTNAME": "hostname",
-            "TAILSCALE_AUTH_KEY": "auth_key",
-            "TAILSCALE_STATE_DIR": "state_dir",
+            "TAILSCALE_HOSTNAME": ("connect", "hostname"),
+            "TAILSCALE_AUTH_KEY": ("connect", "auth_key"),
+            "TAILSCALE_STATE_DIR": ("connect", "state_dir"),
+            "TAILSCALE_PROXY_TARGET": ("proxy", "target"),
+            "TAILSCALE_PROXY_LISTEN_PORT": ("proxy", "listen_port"),
         }
-        for env_key, setting in mapping.items():
+        for env_key, (section_name, setting) in mapping.items():
             if values.get(env_key) is not None:
-                settings[setting] = values[env_key]
+                destination = connect if section_name == "connect" else proxy
+                destination[setting] = values[env_key]
 
     for required in ("hostname", "auth_key", "state_dir"):
-        if not settings.get(required):
+        if not connect.get(required):
             raise TailscaleConfigurationError(
-                "Tailscale configuration error: required setting 'settings.{}' is missing".format(required)
+                "Tailscale configuration error: required setting 'connect.settings.{}' is missing".format(required)
             )
 
-    state = Path(settings["state_dir"])
+    state = Path(connect["state_dir"])
     if not state.is_absolute():
         state = base / state
     state = state.resolve()
-    # Both IDs keep each occurrence isolated within and across source blocks.
     state = state / "roleforge-instance-{}-{}".format(role.index, role.role_index)
-    settings["state_dir"] = str(state)
-    return settings
+    connect["state_dir"] = str(state)
+
+    return {"connect": connect, "proxy": proxy}
+
+
+class _TailscaleProxy:
+    def __init__(self, role):
+        self._role = role
+
+    def start(self):
+        with self._role._lock:
+            if self._role._process is None or self._role._process.poll() is not None:
+                raise TailscaleConnectionError("Tailscale node is not connected and ready")
+            if self._role.settings is None:
+                self._role.settings = _parse_body(self._role)
+                self._role.connect_settings = self._role.settings["connect"]
+                self._role.proxy_settings = self._role.settings["proxy"]
+                self._role.hostname = self._role.connect_settings["hostname"]
+            proxy = self._role.proxy_settings
+            target = proxy.get("target")
+            if not target:
+                raise TailscaleConfigurationError("Tailscale configuration error: required setting 'proxy.settings.target' is missing")
+            parsed = urlparse(target)
+            if parsed.scheme not in ("http", "https") or not parsed.hostname:
+                raise TailscaleConfigurationError("Tailscale configuration error: 'proxy.settings.target' must be a valid HTTP or HTTPS URL")
+            try:
+                listen_port = int(proxy.get("listen_port", ""))
+            except (TypeError, ValueError):
+                raise TailscaleConfigurationError("Tailscale configuration error: 'proxy.settings.listen_port' must be an integer") from None
+            if listen_port < 1 or listen_port > 65535:
+                raise TailscaleConfigurationError("Tailscale configuration error: 'proxy.settings.listen_port' must be between 1 and 65535")
+            return self._role._request({
+                "command": "proxy_start",
+                "target": target,
+                "listen_port": listen_port,
+            }, timeout=15)
+
+    def stop(self):
+        with self._role._lock:
+            if self._role._process is None or self._role._process.poll() is not None:
+                return {
+                    "state": "disconnected", "hostname": self._role.hostname or "",
+                    "tailscale_ips": [], "dns_name": "",
+                    "proxy_state": "stopped", "listen_port": 0,
+                }
+            return self._role._request({"command": "proxy_stop"}, timeout=10)
 
 
 class Role(BaseRole):
@@ -132,8 +209,15 @@ class Role(BaseRole):
         self._lock = threading.RLock()
         self._closed = True
         self.settings = None
+        self.connect_settings = None
+        self.proxy_settings = None
         self.hostname = None
+        self._proxy = _TailscaleProxy(self)
         atexit.register(self._atexit_disconnect)
+
+    @property
+    def proxy(self):
+        return self._proxy
 
     def _helper_path(self):
         system = platform.system().lower()
@@ -217,6 +301,13 @@ class Role(BaseRole):
                 error = response.get("error")
                 if not isinstance(error, str) or not error:
                     error = "The Tailscale helper returned an unknown error"
+                code = response.get("error_code")
+                if code == "invalid_config":
+                    raise TailscaleConfigurationError(error)
+                if code == "connection_failed" or code == "node_not_ready":
+                    raise TailscaleConnectionError(error)
+                if code in ("invalid_proxy_config", "proxy_target_unreachable", "proxy_start_failed"):
+                    raise TailscaleProxyError(error)
                 raise TailscaleProtocolError(error)
             status = response.get("status")
             if not isinstance(status, dict):
@@ -227,16 +318,20 @@ class Role(BaseRole):
         with self._lock:
             if self.settings is None:
                 self.settings = _parse_body(self)
-                self.hostname = self.settings["hostname"]
+                self.connect_settings = self.settings["connect"]
+                self.proxy_settings = self.settings["proxy"]
+                self.hostname = self.connect_settings["hostname"]
             if self._process is not None and self._process.poll() is None:
-                return self.status()
+                current = self.status()
+                if current.get("state") == "Running":
+                    return current
             self._start_helper()
             try:
                 return self._request({
                     "command": "connect",
-                    "hostname": self.settings["hostname"],
-                    "auth_key": self.settings["auth_key"],
-                    "state_dir": self.settings["state_dir"],
+                    "hostname": self.connect_settings["hostname"],
+                    "auth_key": self.connect_settings["auth_key"],
+                    "state_dir": self.connect_settings["state_dir"],
                 }, timeout=70)
             except Exception:
                 self.disconnect()
@@ -250,6 +345,8 @@ class Role(BaseRole):
                     "hostname": self.hostname or "",
                     "tailscale_ips": [],
                     "dns_name": "",
+                    "proxy_state": "stopped",
+                    "listen_port": 0,
                 }
             try:
                 return self._request({"command": "status"}, timeout=10)
@@ -263,6 +360,7 @@ class Role(BaseRole):
                 return {
                     "state": "disconnected", "hostname": self.hostname or "",
                     "tailscale_ips": [], "dns_name": "",
+                    "proxy_state": "stopped", "listen_port": 0,
                 }
             process = self._process
             try:
@@ -287,6 +385,7 @@ class Role(BaseRole):
             return {
                 "state": "disconnected", "hostname": self.hostname or "",
                 "tailscale_ips": [], "dns_name": "",
+                "proxy_state": "stopped", "listen_port": 0,
             }
 
     def _atexit_disconnect(self):

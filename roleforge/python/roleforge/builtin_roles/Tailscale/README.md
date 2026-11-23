@@ -7,20 +7,28 @@
 ```text
 @role Tailscale
 env_file = "./.env"
-settings.hostname = "example-device"
-settings.auth_key = "REPLACE_WITH_A_REAL_AUTH_KEY"
-settings.state_dir = ".roleforge/tailscale"
+
+connect.settings {
+  hostname = "home-gallery"
+  auth_key = ""
+  state_dir = ".roleforge/tailscale"
+}
+
+proxy.settings {
+  target = "http://127.0.0.1:8000"
+  listen_port = 8080
+}
 ```
 
 `env_file` is optional. Relative `env_file` and `settings.state_dir` paths are resolved from `role.source.path.parent`. An `.env` file is read with `python-dotenv` without changing the process environment.
 
 | `.env` key | `.rfg` setting |
 | --- | --- |
-| `TAILSCALE_HOSTNAME` | `settings.hostname` |
-| `TAILSCALE_AUTH_KEY` | `settings.auth_key` |
-| `TAILSCALE_STATE_DIR` | `settings.state_dir` |
+| `TAILSCALE_HOSTNAME` | `connect.settings.hostname` |
+| `TAILSCALE_AUTH_KEY` | `connect.settings.auth_key` |
+| `TAILSCALE_STATE_DIR` | `connect.settings.state_dir` |
 
-Matching `.env` values override direct `.rfg` values. Unrelated environment variables are ignored. `hostname`, `auth_key`, and `state_dir` are required after merging.
+Matching `.env` values override direct `.rfg` values. Unrelated environment variables are ignored. `hostname`, `auth_key`, and `state_dir` are required after merging. Proxy settings are `target` and `listen_port`; matching `.env` names are `TAILSCALE_PROXY_TARGET` and `TAILSCALE_PROXY_LISTEN_PORT`.
 
 If `env_file` is specified but missing or unreadable, calling `connect()` raises `TailscaleConfigurationError`. Unknown or malformed settings also raise a configuration error identifying the Tailscale Role and line/key. Real auth keys belong only in an ignored `.env` file; never commit or log them.
 
@@ -31,14 +39,18 @@ Loading a `.rfg` file creates the Role object only. Configuration is parsed and 
 ```python
 project = roleforge.load("project.rfg")
 
-project.tailscale.status()
 project.tailscale.connect()
+project.tailscale.proxy.start()
+project.tailscale.status()
+project.tailscale.proxy.stop()
 project.tailscale.disconnect()
 ```
 
-- `connect()` starts the embedded helper and waits for Tailscale readiness.
-- `disconnect()` closes the helper and is safe when already disconnected.
-- `status()` reports existing state without starting a connection.
+- `connect()` starts the embedded helper and waits for Tailscale readiness; it does not start the proxy.
+- `proxy.start()` requires the node to be ready and forwards tailnet requests to the configured local target.
+- `proxy.stop()` stops forwarding but leaves the node connected.
+- `disconnect()` stops the proxy if running and closes the helper; it is safe when already disconnected.
+- `status()` reports connection and proxy state separately without starting a connection.
 
 Repeated `connect()` calls are safe. A later `connect()` starts a fresh helper after `disconnect()`.
 
@@ -50,10 +62,12 @@ Repeated `connect()` calls are safe. A later `connect()` starts a fresh helper a
     "hostname": "example-device",
     "tailscale_ips": ["100.x.y.z"],
     "dns_name": "example-device.tailnet.ts.net",
+    "proxy_state": "running",
+    "listen_port": 8080,
 }
 ```
 
-For a disconnected Role, `tailscale_ips` is empty and `dns_name` is an empty string.
+For a disconnected Role, `tailscale_ips` is empty, `dns_name` is an empty string, `proxy_state` is `stopped`, and `listen_port` is `0`.
 
 ## State isolation and supported binaries
 

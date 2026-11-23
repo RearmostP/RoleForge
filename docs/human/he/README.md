@@ -91,22 +91,37 @@ project.get_role("Test", 1).hello()  # Exact-name access.
 ```text
 @role Tailscale
 env_file = "./.env"
-settings.hostname = "example-device"
-settings.auth_key = "REPLACE_WITH_A_REAL_AUTH_KEY"
-settings.state_dir = ".roleforge/tailscale"
+
+connect.settings {
+  hostname = "home-gallery"
+  auth_key = ""
+  state_dir = ".roleforge/tailscale"
+}
+
+proxy.settings {
+  target = "http://127.0.0.1:8000"
+  listen_port = 8080
+}
 ```
 
-`env_file` אופציונלי. נתיבים יחסיים של `env_file` ושל `settings.state_dir` נפתרים יחסית ל־`role.source.path.parent`. המפתחות בקובץ `.env` הם `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY` ו־`TAILSCALE_STATE_DIR`; כל מפתח כזה דורס רק את הערך הישיר התואם, ומשתני סביבה לא קשורים אינם נקראים. `hostname`, `auth_key` ו־`state_dir` כולם חובה. שמרו מפתחות אמיתיים ב־`.env`, הוסיפו אותו ל־`.gitignore`, ולעולם אל תכללו או תדפיסו אותו בלוגים.
+`env_file` אופציונלי. נתיבים יחסיים נפתרים ביחס ל־`role.source.path.parent`. המפתחות בקובץ `.env` הם `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, `TAILSCALE_STATE_DIR`, `TAILSCALE_PROXY_TARGET` ו־`TAILSCALE_PROXY_LISTEN_PORT`; ערך `.env` דורס רק את השדה התואם ב־`.rfg`, ומשתני סביבה אחרים אינם נקראים. שמרו מפתחות אמיתיים ב־`.env`, הוסיפו אותו ל־`.gitignore`, ולעולם אל תכללו או תדפיסו אותו בלוגים.
 
 ```python
-status = project.tailscale.status()      # אינה מפעילה את ה־helper
-status = project.tailscale.connect()     # מפעילה וממתינה לחיבור
-status = project.tailscale.disconnect()  # סוגרת את צומת tsnet בבטחה
+from roleforge import load
+
+project = load("server.rfg")
+tailscale = project.tailscale
+
+tailscale.connect()
+tailscale.proxy.start()
+print(tailscale.status())
+tailscale.proxy.stop()
+tailscale.disconnect()
 ```
 
-`status()` מחזירה `state`, `hostname`, `tailscale_ips` ו־`dns_name`. קריאות חוזרות של `connect()` משתמשות באותו helper חי; לאחר `disconnect()` אפשר לקרוא ל־`connect()` שוב ולהתחיל תהליך חדש. כל מופע מקבל תיקיית state מבודדת באמצעות `role_index`. שגיאות תצורה, הפעלה, timeout, פרוטוקול ויציאה בלתי צפויה מיוצגות בחריגי Python ייעודיים.
+`connect()` מתחבר וממתין לצומת tsnet מוכן; הוא אינו מפעיל את ה־proxy. `proxy.start()` דורש צומת מחובר ומעביר בקשות מרשת Tailscale לשירות המקומי המוגדר; `proxy.stop()` עוצר את ההעברה אך משאיר את הצומת מחובר. שירות הגלריה המקומי חייב לפעול. `status()` מדווח בנפרד על `state` ו־`proxy_state`.
 
-ה־helper המוקדם כולל בינארים ל־Windows amd64, Linux amd64 ו־Linux arm64. Role זה מטמיע צומת באמצעות `tsnet`; הוא אינו מדליק או מכבה את המחשב, VPN ברמת המערכת או דורש שירות `tailscaled` נפרד או CLI של Tailscale.
+ה־helper המוקדם כולל בינארים ל־Windows amd64, Linux amd64 ו־Linux arm64. Role זה מטמיע צומת עם זהות רשת נפרדת באמצעות `tsnet`; הוא אינו משנה את שם המחשב או מסדר מחדש את צומת Tailscale ברמת המערכת, ואינו דורש שירות `tailscaled` או CLI נפרד. ה־proxy מעביר בקשות מ־tailnet לשירות מקומי ואינו מפרסם את השירות באינטרנט הציבורי.
 
 ## ניתוב ושגיאות במימוש הנוכחי
 

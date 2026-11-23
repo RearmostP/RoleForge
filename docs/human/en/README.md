@@ -89,22 +89,37 @@ Registering a Role is not required; `Tailscale` is built in. Loading creates the
 ```text
 @role Tailscale
 env_file = "./.env"
-settings.hostname = "example-device"
-settings.auth_key = "REPLACE_WITH_A_REAL_AUTH_KEY"
-settings.state_dir = ".roleforge/tailscale"
+
+connect.settings {
+  hostname = "home-gallery"
+  auth_key = ""
+  state_dir = ".roleforge/tailscale"
+}
+
+proxy.settings {
+  target = "http://127.0.0.1:8000"
+  listen_port = 8080
+}
 ```
 
-`env_file` is optional. Relative `env_file` and `settings.state_dir` paths resolve beside `role.source.path.parent`. The `.env` keys `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, and `TAILSCALE_STATE_DIR` replace matching direct settings; unrelated process environment variables are ignored. `hostname`, `auth_key`, and `state_dir` are all required. Keep real keys in `.env`, add it to `.gitignore`, and never commit or log a key.
+`env_file` is optional and relative paths resolve beside `role.source.path.parent`. `.env` values override matching `.rfg` values: `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, `TAILSCALE_STATE_DIR`, `TAILSCALE_PROXY_TARGET`, and `TAILSCALE_PROXY_LISTEN_PORT`. An absent `.env` value retains the `.rfg` value. Keep real keys in `.env`, add it to `.gitignore, and never commit or log a key.
 
 ```python
-status = project.tailscale.status()      # Does not start the helper
-status = project.tailscale.connect()     # Starts, connects, and waits for readiness
-status = project.tailscale.disconnect()  # Stops the embedded node safely
+from roleforge import load
+
+project = load("server.rfg")
+tailscale = project.tailscale
+
+tailscale.connect()
+tailscale.proxy.start()
+print(tailscale.status())
+tailscale.proxy.stop()
+tailscale.disconnect()
 ```
 
-`status()` returns `state`, `hostname`, `tailscale_ips`, and `dns_name`. Repeated `connect()` calls reuse the live helper; `disconnect()` then permits a later fresh connection. Multiple occurrences receive isolated state directories derived from `role_index`. Configuration, startup, timeout, protocol, and unexpected-helper-exit failures use dedicated Python exceptions.
+`connect()` starts and waits for the embedded tsnet node; it does not start the proxy. `proxy.start()` starts forwarding through the connected tailnet node, and `proxy.stop()` leaves the node connected. The configured local gallery service must be running. `status()` reports separate `state` and `proxy_state` fields. Configuration, connection, helper, timeout, protocol, and proxy failures use dedicated exceptions.
 
-Precompiled helpers are included for Windows amd64, Linux amd64, and Linux arm64. This Role embeds a node with `tsnet`; it does not enable or disable this computer, a system-wide Tailscale VPN, or require a separately running `tailscaled` or Tailscale CLI.
+Precompiled helpers are included for Windows amd64, Linux amd64, and Linux arm64. This Role embeds a separate network identity with `tsnet`; it does not enable or disable this computer or reconfigure the host computer's system-wide Tailscale node. The proxy forwards tailnet requests to a local service and does not publish that service to the public internet.
 
 ## Routing and failures today
 

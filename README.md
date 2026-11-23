@@ -25,7 +25,37 @@ project.test[0].hello()  # Same live instance.
 
 The Role implements `roleforge_receive(role)` and receives a live Python object with read-only name, body, indexes, and source metadata. An optional `Role` subclass defines methods; the receiver initializes per-instance state. The Python Bridge creates the object and Project retains it after delivery. Core does not interpret `hello = world`; that belongs to the Role. Receipt does not automatically call `start()`.
 
-The repository includes a working [Test Role](roleforge/python/roleforge/roles/Test/main.py), its [registration](roleforge/python/roleforge/core/storage/dynamic_roles.json), and a [Python example](external_test_project/main.py) that delivers two instances from [test.rfg](external_test_project/test.rfg). See the setup instructions before running it.
+The repository includes a working [Test Role](roleforge/python/roleforge/roles/Test/main.py), its [registration](roleforge/python/roleforge/core/storage/dynamic_roles.json), and a [Python example](external_test_project/main.py) that delivers two instances from [test.rfg](external_test_project/test.rfg). It also includes a built-in [Tailscale Role](roleforge/python/roleforge/builtin_roles/Tailscale/README.md) for an independent embedded `tsnet` node and an optional tailnet reverse proxy.
+
+```text
+@role Tailscale
+env_file = ".env"
+
+connect.settings {
+  hostname = "home-gallery"
+  auth_key = ""
+  state_dir = ".roleforge/tailscale"
+}
+
+proxy.settings {
+  target = "http://127.0.0.1:8000"
+  listen_port = 8080
+}
+```
+
+```python
+from roleforge import load
+
+project = load("server.rfg")
+tailscale = project.tailscale
+tailscale.connect()
+tailscale.proxy.start()
+print(tailscale.status())
+tailscale.proxy.stop()
+tailscale.disconnect()
+```
+
+`connect()` and `proxy.start()` are separate operations. The proxy forwards tailnet requests to a local gallery service; it does not make that service publicly accessible and the local service must be running. See the [Tailscale configuration design](docs/human/en/TAILSCALE_ROLE_CONFIGURATION.md) and [networking concept guide](docs/human/en/TAILSCALE_ROLE_CONCEPT.md).
 
 ## Documentation
 
