@@ -2,9 +2,9 @@
 
 This GitHub Release provides installable Python Wheels for:
 
-- Windows x64: the Wheel whose filename contains `win_amd64`
-- Linux x64: the Wheel whose filename contains `linux_x86_64` or `manylinux` plus `x86_64`
-- Linux ARM64: the Wheel whose filename contains `linux_aarch64` or `manylinux` plus `aarch64`
+- Windows x64: `roleforge-0.2.0-cp310-abi3-win_amd64.whl`
+- Linux x64: `roleforge-0.2.0-cp310-abi3-manylinux_2_34_x86_64.whl`
+- Linux ARM64: `roleforge-0.2.0-cp310-abi3-manylinux_2_34_aarch64.whl`
 
 ## Tailscale Role
 
