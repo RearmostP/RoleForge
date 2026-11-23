@@ -1,9 +1,7 @@
 import atexit
 import json
-import os
 import platform
 import queue
-import shutil
 import subprocess
 import threading
 from pathlib import Path
@@ -133,8 +131,8 @@ class Role(BaseRole):
         self._stderr = []
         self._lock = threading.RLock()
         self._closed = True
-        self.settings = _parse_body(self)
-        self.hostname = self.settings["hostname"]
+        self.settings = None
+        self.hostname = None
         atexit.register(self._atexit_disconnect)
 
     def _helper_path(self):
@@ -227,6 +225,9 @@ class Role(BaseRole):
 
     def connect(self):
         with self._lock:
+            if self.settings is None:
+                self.settings = _parse_body(self)
+                self.hostname = self.settings["hostname"]
             if self._process is not None and self._process.poll() is None:
                 return self.status()
             self._start_helper()
@@ -246,7 +247,7 @@ class Role(BaseRole):
             if self._process is None or self._process.poll() is not None:
                 return {
                     "state": "disconnected",
-                    "hostname": self.hostname,
+                    "hostname": self.hostname or "",
                     "tailscale_ips": [],
                     "dns_name": "",
                 }
@@ -260,7 +261,7 @@ class Role(BaseRole):
             if self._process is None:
                 self._closed = True
                 return {
-                    "state": "disconnected", "hostname": self.hostname,
+                    "state": "disconnected", "hostname": self.hostname or "",
                     "tailscale_ips": [], "dns_name": "",
                 }
             process = self._process
@@ -284,7 +285,7 @@ class Role(BaseRole):
                 self._process = None
                 self._closed = True
             return {
-                "state": "disconnected", "hostname": self.hostname,
+                "state": "disconnected", "hostname": self.hostname or "",
                 "tailscale_ips": [], "dns_name": "",
             }
 

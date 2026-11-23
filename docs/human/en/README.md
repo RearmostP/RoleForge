@@ -84,7 +84,7 @@ These records describe discovery and routing. They are not executable Role insta
 
 ## Built-in Tailscale Role
 
-Registering a Role is not required; `Tailscale` is built in. The body is parsed only when RoleForge loads the `.rfg`; loading does not start Tailscale.
+Registering a Role is not required; `Tailscale` is built in. Loading creates the Python Role object but does not parse `.env` configuration or start Tailscale; `connect()` performs parsing and validation.
 
 ```text
 @role Tailscale

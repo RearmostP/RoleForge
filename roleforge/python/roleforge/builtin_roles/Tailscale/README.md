@@ -26,7 +26,7 @@ If `env_file` is specified but missing or unreadable, loading raises `TailscaleC
 
 ## Python API
 
-Loading a `.rfg` file creates and configures the Role only. It does not connect:
+Loading a `.rfg` file creates the Role object only. Configuration is parsed and validated by the first `connect()` call. Loading does not read the `.env` file or connect:
 
 ```python
 project = roleforge.load("project.rfg")

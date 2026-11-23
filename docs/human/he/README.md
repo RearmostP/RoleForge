@@ -86,7 +86,7 @@ project.get_role("Test", 1).hello()  # Exact-name access.
 
 ## ה־Role המובנה של Tailscale
 
-אין צורך לרשום את השם ידנית: `Tailscale` הוא Role מובנה. גוף ה־Role מפוענח בעת טעינת קובץ ה־`.rfg`, אך הטעינה עצמה אינה מתחברת ל־Tailscale.
+אין צורך לרשום את השם ידנית: `Tailscale` הוא Role מובנה. הטעינה יוצרת את אובייקט ה־Role ב־Python, אך אינה מפענחת את תצורת `.env` ואינה מתחברת ל־Tailscale; `connect()` מבצע את הפענוח והאימות.
 
 ```text
 @role Tailscale
