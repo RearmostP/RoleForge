@@ -6,3 +6,5 @@ __pycache__/
 /roleforge/*.so
 /roleforge/python/roleforge/*.pyd
 /roleforge/python/roleforge/*.so
+
+.idea/
