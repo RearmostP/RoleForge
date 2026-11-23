@@ -1,4 +1,6 @@
 // Stable, environment-neutral Core-to-Role handoff contract.
+use std::path::PathBuf;
+
 use crate::core::pipeline::models::CleanRole;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -12,6 +14,7 @@ pub(crate) struct RoleInput {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RoleSource {
+    pub(crate) path: PathBuf,
     pub(crate) declaration_line: usize,
 }
 
@@ -23,6 +26,7 @@ impl From<&CleanRole> for RoleInput {
             role_index: role.role_index,
             body: role.body.clone(),
             source: RoleSource {
+                path: role.source.path.clone(),
                 declaration_line: role.source.declaration_line,
             },
         }

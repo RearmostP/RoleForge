@@ -22,6 +22,7 @@ pub(crate) fn tokenize(file: &LoadedFile) -> Result<Vec<CleanRole>, TokenizeErro
                 name: raw.name.to_owned(),
                 body: role_content::clean_body(raw.body),
                 source: SourceInfo {
+                    path: file.path.clone(),
                     declaration_line: raw.declaration_line,
                 },
             }

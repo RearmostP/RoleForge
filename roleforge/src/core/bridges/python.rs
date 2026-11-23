@@ -1,7 +1,7 @@
 use super::{Bridge, BridgeError};
 use crate::core::role_input::{RoleInput, RoleSource};
 use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(super) struct PythonBridge;
 
@@ -10,12 +10,14 @@ pub(crate) type LiveRole = Py<PyAny>;
 #[pyclass(frozen, get_all, name = "RoleSource", module = "roleforge")]
 #[derive(Clone)]
 struct PythonSource {
+    path: PathBuf,
     declaration_line: usize,
 }
 
 impl From<RoleSource> for PythonSource {
     fn from(source: RoleSource) -> Self {
         Self {
+            path: source.path,
             declaration_line: source.declaration_line,
         }
     }

@@ -1,0 +1,10 @@
+# קבצים המוגדרים כברירת מחדל שמתעלמים מהם
+/shelf/
+/workspace.xml
+# בקשות לקוח HTTP מבוססות עורך
+/httpRequests/
+# התעלם מתיקיית ברירת המחדל עם קבצי השאילתה
+/queries/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml

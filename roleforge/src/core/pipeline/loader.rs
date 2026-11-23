@@ -10,10 +10,11 @@ pub(crate) fn load_file(path: impl AsRef<Path>) -> Result<LoadedFile, FileError>
     let path = path.as_ref();
     let content = fs::read_to_string(path).map_err(|error| FileError::reading(path, error))?;
 
-    Ok(LoadedFile {
-        content,
-        path: path.to_path_buf(),
-    })
+    let path = path
+        .canonicalize()
+        .map_err(|error| FileError::reading(path, error))?;
+
+    Ok(LoadedFile { content, path })
 }
 
 #[cfg(test)]

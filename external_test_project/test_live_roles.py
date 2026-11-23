@@ -74,10 +74,22 @@ class LiveRoleTests(unittest.TestCase):
                 setattr(role, field, None)
         with self.assertRaises(AttributeError):
             role.source.declaration_line = 9
+        with self.assertRaises(AttributeError):
+            role.source.path = self.target
 
     def test_interleaved_instances_keep_core_identity_and_independent_state(self):
-        project = self.project("@role Test\nfirst\n@role Config\nconfig\n@role Test\nsecond")
+        source = self.root / "source.rfg"
+        source.write_bytes(b"@role Test\nfirst\n@role Config\nconfig\n@role Test\nsecond")
+        subdirectory = self.root / "subdirectory"
+        subdirectory.mkdir()
+        project = load(subdirectory / ".." / source.name)
         first, second = project.test, project.test[1]
+        self.assertIsInstance(first.source.path, Path)
+        self.assertTrue(first.source.path.is_absolute())
+        self.assertNotIn("..", first.source.path.parts)
+        self.assertTrue(first.source.path.samefile(source))
+        self.assertEqual(first.source.path, project.config.source.path)
+        self.assertEqual(first.source.path, second.source.path)
         self.assertIsNot(first, second)
         self.assertIs(second, project.get_role("Test", 1))
         self.assertEqual(first.hello(), ("Test", 0, 0, "first\n", 1))

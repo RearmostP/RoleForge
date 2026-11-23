@@ -78,13 +78,21 @@ impl Drop for TestFile {
     }
 }
 
-fn role(name: &str, index: usize, role_index: usize, line: usize, body: &str) -> CleanRole {
+fn role(
+    path: &Path,
+    name: &str,
+    index: usize,
+    role_index: usize,
+    line: usize,
+    body: &str,
+) -> CleanRole {
     CleanRole {
         name: name.to_owned(),
         index,
         role_index,
         body: body.to_owned(),
         source: SourceInfo {
+            path: path.canonicalize().unwrap(),
             declaration_line: line,
         },
     }
@@ -117,6 +125,7 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
         vec![
             DispatchResult::Resolved {
                 role: role(
+                    &path,
                     "Directory",
                     0,
                     0,
@@ -130,6 +139,7 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
             },
             DispatchResult::Resolved {
                 role: role(
+                    &path,
                     "Config",
                     1,
                     0,
@@ -142,7 +152,7 @@ fn project_file_reaches_final_result_with_order_metadata_bodies_and_destinations
                 },
             },
             DispatchResult::Resolved {
-                role: role("Directory", 2, 1, 8, "assets/"),
+                role: role(&path, "Directory", 2, 1, 8, "assets/"),
                 entry: RoleEntry {
                     via: "python".into(),
                     target: directory
@@ -188,10 +198,10 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
         results,
         vec![
             DispatchResult::Unknown {
-                role: role("Missing", 0, 0, 1, "unknown\n")
+                role: role(&fixture.0, "Missing", 0, 0, 1, "unknown\n")
             },
             DispatchResult::Conflict {
-                role: role("Shared", 1, 0, 3, "conflict\n"),
+                role: role(&fixture.0, "Shared", 1, 0, 3, "conflict\n"),
                 builtin_entry: RoleEntry {
                     via: "python".into(),
                     target: root.join("builtin_roles/shared/builtin")
@@ -202,14 +212,14 @@ fn unknown_and_conflict_remain_visible_and_do_not_reset_indexes() {
                 },
             },
             DispatchResult::Resolved {
-                role: role("Last", 2, 0, 5, "first\n"),
+                role: role(&fixture.0, "Last", 2, 0, 5, "first\n"),
                 entry: RoleEntry {
                     via: "python".into(),
                     target: root.join("roles/last/entry")
                 },
             },
             DispatchResult::Resolved {
-                role: role("Last", 3, 1, 7, "second"),
+                role: role(&fixture.0, "Last", 3, 1, 7, "second"),
                 entry: RoleEntry {
                     via: "python".into(),
                     target: root.join("roles/last/entry")
@@ -235,7 +245,7 @@ fn stored_registry_can_be_loaded_once_and_reused() {
         assert_eq!(
             run_file(&fixture.0, &registry, &mut output).unwrap(),
             vec![DispatchResult::Unknown {
-                role: role("UnregisteredStage04Fixture", 0, 0, 1, "body")
+                role: role(&fixture.0, "UnregisteredStage04Fixture", 0, 0, 1, "body")
             },]
         );
         assert!(

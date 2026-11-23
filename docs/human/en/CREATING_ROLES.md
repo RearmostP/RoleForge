@@ -109,6 +109,7 @@ Python receives a live object whose input-derived fields and nested source metad
 | `role.index` | Zero-based position among all Roles in this source. |
 | `role.role_index` | Zero-based occurrence among Roles with exactly the same name. |
 | `role.body` | Body after existing Core-level comment processing; Role syntax remains uninterpreted. |
+| `role.source.path` | Absolute, normalized `pathlib.Path` of the loaded `.rfg` file. Use `role.source.path.parent` to resolve paths relative to that file. |
 | `role.source.declaration_line` | One-based line of the declaration in the source file. |
 
 Core establishes indexes during discovery, including for Unknown or conflicting Roles. Bridges do not recalculate them. Internally, Handoff explicitly converts discovery data (`CleanRole`) into the neutral RoleInput contract. The Python Bridge adapts its representation.

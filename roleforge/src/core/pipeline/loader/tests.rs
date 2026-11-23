@@ -48,7 +48,7 @@ fn loads_rfg_with_exact_utf8_content_and_path() -> Result<(), Box<dyn std::error
     let loaded = load_file(&fixture.0)?;
 
     assert_eq!(loaded.content, content);
-    assert_eq!(loaded.path, fixture.0);
+    assert_eq!(loaded.path, fixture.0.canonicalize()?);
     Ok(())
 }
 

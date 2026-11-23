@@ -22,5 +22,6 @@ pub(crate) struct CleanRole {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct SourceInfo {
+    pub(crate) path: PathBuf,
     pub(crate) declaration_line: usize,
 }

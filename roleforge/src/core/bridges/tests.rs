@@ -11,6 +11,7 @@ fn role() -> RoleInput {
         role_index: 2,
         body: "opaque body".into(),
         source: RoleSource {
+            path: "source.rfg".into(),
             declaration_line: 19,
         },
     }
@@ -67,6 +68,7 @@ fn handoff_input_preserves_existing_metadata() {
         role_index: 2,
         body: "opaque body".into(),
         source: SourceInfo {
+            path: "source.rfg".into(),
             declaration_line: 19,
         },
     };

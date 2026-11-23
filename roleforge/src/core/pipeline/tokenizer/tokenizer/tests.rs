@@ -18,7 +18,8 @@ fn single_role_preserves_name_body_and_utf8_at_eof() {
             role_index: 0,
             name: "Directory".to_owned(),
             source: SourceInfo {
-                declaration_line: 1
+                path: PathBuf::from("not-read-by-tokenizer.rfg"),
+                declaration_line: 1,
             },
             body: "  שלום 🌍\n\tdata  ".to_owned(),
         }]
