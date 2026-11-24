@@ -97,12 +97,13 @@ connect.settings {
 }
 
 proxy.settings {
+  https = true
   target = "http://127.0.0.1:8000"
-  listen_port = 8080
+  listen_port = 443
 }
 ```
 
-`env_file` is optional and relative paths resolve beside `role.source.path.parent`. `.env` values override matching `.rfg` values: `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, `TAILSCALE_STATE_DIR`, `TAILSCALE_PROXY_TARGET`, and `TAILSCALE_PROXY_LISTEN_PORT`. An absent `.env` value retains the `.rfg` value. Keep real keys in `.env`, add it to `.gitignore, and never commit or log a key.
+`env_file` is optional and relative paths resolve beside `role.source.path.parent`. `.env` values override matching `.rfg` values: `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, `TAILSCALE_STATE_DIR`, `TAILSCALE_PROXY_TARGET`, `TAILSCALE_PROXY_LISTEN_PORT`, and `TAILSCALE_PROXY_HTTPS`. An absent `.env` value retains the `.rfg` value. Keep real keys in `.env`, add it to `.gitignore`, and never commit or log a key.
 
 ```python
 from roleforge import load
@@ -117,7 +118,7 @@ tailscale.proxy.stop()
 tailscale.disconnect()
 ```
 
-`connect()` starts and waits for the embedded tsnet node; it does not start the proxy. `proxy.start()` starts forwarding through the connected tailnet node, and `proxy.stop()` leaves the node connected. The configured local gallery service must be running. `status()` reports separate `state` and `proxy_state` fields. Configuration, connection, helper, timeout, protocol, and proxy failures use dedicated exceptions.
+`connect()` starts and waits for the embedded tsnet node; it does not start the proxy. `proxy.start()` starts forwarding through the connected tailnet node, and `proxy.stop()` leaves the node connected. With `https = true`, it uses `tsnet.Server.ListenTLS`; enable HTTPS certificates for the tailnet and browse to its `.ts.net` name on port 443. The configured local gallery service must be running. `status()` reports separate `state`, `proxy_state`, `listen_port`, and `proxy_https` fields. Configuration, connection, helper, timeout, protocol, and proxy failures use dedicated exceptions.
 
 Precompiled helpers are included for Windows amd64, Linux amd64, and Linux arm64. This Role embeds a separate network identity with `tsnet`; it does not enable or disable this computer or reconfigure the host computer's system-wide Tailscale node. The proxy forwards tailnet requests to a local service and does not publish that service to the public internet.
 

@@ -19,11 +19,11 @@ The `proxy.start()` operation is a separate step. It allows the Role's node to r
 ```text
 Phone app
    |
-   | private Tailscale network
+   | HTTPS over private Tailscale network
    v
 Role-created Tailscale node
    |
-   | proxy listener on the configured port
+   | optional tsnet TLS listener (port 443 for browser access)
    v
 Proxy
    |
@@ -32,6 +32,8 @@ Local gallery service (for example, 127.0.0.1:8000)
 ```
 
 Thus, starting `connect()` alone does not expose the gallery. The local gallery application must still be running, and the phone app must use the Role-created node and the matching listening port.
+
+For browser clients, configure `proxy.settings.https = true` and use the node's `.ts.net` DNS name over port 443. HTTPS certificates must be enabled for the tailnet in its Tailscale admin settings. The Role's TLS listener is tailnet-only; the HTTP connection from the proxy to a loopback gallery server remains local to the same machine.
 
 ## Private gateway rather than public publishing
 

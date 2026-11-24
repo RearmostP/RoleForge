@@ -1,21 +1,23 @@
-# RoleForge v0.2.0
+# RoleForge v0.2.1
 
 This GitHub Release provides installable Python Wheels for:
 
-- Windows x64: `roleforge-0.2.0-cp310-abi3-win_amd64.whl`
-- Linux x64: `roleforge-0.2.0-cp310-abi3-manylinux_2_34_x86_64.whl`
-- Linux ARM64: `roleforge-0.2.0-cp310-abi3-manylinux_2_34_aarch64.whl`
+- Windows x64: `roleforge-0.2.1-cp310-abi3-win_amd64.whl`
+- Linux x64: `roleforge-0.2.1-cp310-abi3-manylinux_2_34_x86_64.whl`
+- Linux ARM64: `roleforge-0.2.1-cp310-abi3-manylinux_2_34_aarch64.whl`
 
 ## Tailscale Role
 
 The built-in Tailscale Role supports an independent `tsnet` node, nested `connect.settings` and `proxy.settings` configuration, `.env` overrides, persistent state, `connect()`, `proxy.start()`, `proxy.stop()`, `disconnect()`, and separate connection/proxy status reporting.
+
+Set `proxy.settings.https = true` (or `TAILSCALE_PROXY_HTTPS=true`) to use `tsnet.Server.ListenTLS` on a tailnet HTTPS listener. HTTP remains the backward-compatible default. Browser use requires a `.ts.net` HTTPS endpoint and tailnet HTTPS certificates.
 
 ## Installation
 
 Download the Wheel matching your OS and CPU architecture, then install it directly:
 
 ```text
-python -m pip install ./roleforge-0.2.0-*.whl
+python -m pip install ./roleforge-0.2.1-*.whl
 ```
 
 This release is distributed through GitHub Releases, not PyPI.

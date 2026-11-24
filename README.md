@@ -38,8 +38,9 @@ connect.settings {
 }
 
 proxy.settings {
+  https = true
   target = "http://127.0.0.1:8000"
-  listen_port = 8080
+  listen_port = 443
 }
 ```
 
@@ -55,7 +56,7 @@ tailscale.proxy.stop()
 tailscale.disconnect()
 ```
 
-`connect()` and `proxy.start()` are separate operations. The proxy forwards tailnet requests to a local gallery service; it does not make that service publicly accessible and the local service must be running. See the [Tailscale configuration design](docs/human/en/TAILSCALE_ROLE_CONFIGURATION.md) and [networking concept guide](docs/human/en/TAILSCALE_ROLE_CONCEPT.md).
+`connect()` and `proxy.start()` are separate operations. With `https = true`, the proxy uses tsnet's TLS listener and requires HTTPS certificates to be enabled for the tailnet; browsers should use the node's `.ts.net` name on port 443. The proxy forwards tailnet requests to a local gallery service and does not make that service publicly accessible. See the [Tailscale configuration design](docs/human/en/TAILSCALE_ROLE_CONFIGURATION.md) and [networking concept guide](docs/human/en/TAILSCALE_ROLE_CONCEPT.md).
 
 ## Documentation
 

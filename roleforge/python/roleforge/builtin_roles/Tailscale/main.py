@@ -45,7 +45,7 @@ class TailscaleHelperExitError(TailscaleError):
 
 
 _ALLOWED_CONNECT_SETTINGS = {"hostname", "auth_key", "state_dir"}
-_ALLOWED_PROXY_SETTINGS = {"target", "listen_port"}
+_ALLOWED_PROXY_SETTINGS = {"target", "listen_port", "https"}
 
 
 def _config_error(role, line, message):
@@ -133,6 +133,7 @@ def _parse_body(role):
             "TAILSCALE_STATE_DIR": ("connect", "state_dir"),
             "TAILSCALE_PROXY_TARGET": ("proxy", "target"),
             "TAILSCALE_PROXY_LISTEN_PORT": ("proxy", "listen_port"),
+            "TAILSCALE_PROXY_HTTPS": ("proxy", "https"),
         }
         for env_key, (section_name, setting) in mapping.items():
             if values.get(env_key) is not None:
@@ -151,6 +152,13 @@ def _parse_body(role):
     state = state.resolve()
     state = state / "roleforge-instance-{}-{}".format(role.index, role.role_index)
     connect["state_dir"] = str(state)
+
+    https = proxy.get("https", "false").lower()
+    if https not in ("true", "false"):
+        raise TailscaleConfigurationError(
+            "Tailscale configuration error: 'proxy.settings.https' must be true or false"
+        )
+    proxy["https"] = https == "true"
 
     return {"connect": connect, "proxy": proxy}
 
@@ -185,6 +193,7 @@ class _TailscaleProxy:
                 "command": "proxy_start",
                 "target": target,
                 "listen_port": listen_port,
+                "https": proxy["https"],
             }, timeout=15)
 
     def stop(self):
@@ -193,7 +202,7 @@ class _TailscaleProxy:
                 return {
                     "state": "disconnected", "hostname": self._role.hostname or "",
                     "tailscale_ips": [], "dns_name": "",
-                    "proxy_state": "stopped", "listen_port": 0,
+                    "proxy_state": "stopped", "listen_port": 0, "proxy_https": False,
                 }
             return self._role._request({"command": "proxy_stop"}, timeout=10)
 
@@ -347,6 +356,7 @@ class Role(BaseRole):
                     "dns_name": "",
                     "proxy_state": "stopped",
                     "listen_port": 0,
+                    "proxy_https": False,
                 }
             try:
                 return self._request({"command": "status"}, timeout=10)
@@ -360,7 +370,7 @@ class Role(BaseRole):
                 return {
                     "state": "disconnected", "hostname": self.hostname or "",
                     "tailscale_ips": [], "dns_name": "",
-                    "proxy_state": "stopped", "listen_port": 0,
+                    "proxy_state": "stopped", "listen_port": 0, "proxy_https": False,
                 }
             process = self._process
             try:
