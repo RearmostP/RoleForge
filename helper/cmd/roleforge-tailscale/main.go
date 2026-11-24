@@ -23,6 +23,7 @@ type command struct {
 	StateDir   string `json:"state_dir,omitempty"`
 	Target     string `json:"target,omitempty"`
 	ListenPort int    `json:"listen_port,omitempty"`
+	HTTPS      bool   `json:"https,omitempty"`
 }
 
 type response struct {
@@ -38,9 +39,13 @@ func writeResponse(w *json.Encoder, r response) {
 	}
 }
 
-func statusMap(srv *tsnet.Server, hostname, proxyState string, listenPort int) (map[string]any, error) {
+func ensureStateDir(path string) error {
+	return os.MkdirAll(path, 0700)
+}
+
+func statusMap(srv *tsnet.Server, hostname, proxyState string, listenPort int, proxyHTTPS bool) (map[string]any, error) {
 	if srv == nil {
-		return map[string]any{"state": "disconnected", "hostname": hostname, "tailscale_ips": []string{}, "dns_name": "", "proxy_state": "stopped", "listen_port": listenPort}, nil
+		return map[string]any{"state": "disconnected", "hostname": hostname, "tailscale_ips": []string{}, "dns_name": "", "proxy_state": "stopped", "listen_port": listenPort, "proxy_https": false}, nil
 	}
 	lc, err := srv.LocalClient()
 	if err != nil {
@@ -58,7 +63,7 @@ func statusMap(srv *tsnet.Server, hostname, proxyState string, listenPort int) (
 	if st.Self != nil {
 		dns = st.Self.DNSName
 	}
-	return map[string]any{"state": st.BackendState, "hostname": hostname, "tailscale_ips": ips, "dns_name": dns, "proxy_state": proxyState, "listen_port": listenPort}, nil
+	return map[string]any{"state": st.BackendState, "hostname": hostname, "tailscale_ips": ips, "dns_name": dns, "proxy_state": proxyState, "listen_port": listenPort, "proxy_https": proxyHTTPS}, nil
 }
 
 func nodeReady(srv *tsnet.Server) bool {
@@ -93,6 +98,7 @@ func main() {
 	var hostname string
 	var proxyState = "stopped"
 	var listenPort int
+	var proxyHTTPS bool
 	var proxyServer *http.Server
 	var proxyListener net.Listener
 
@@ -112,7 +118,7 @@ func main() {
 			}
 			if srv != nil {
 				if nodeReady(srv) {
-					status, err := statusMap(srv, hostname, proxyState, listenPort)
+					status, err := statusMap(srv, hostname, proxyState, listenPort, proxyHTTPS)
 					if err == nil {
 						writeResponse(enc, response{Ok: true, Status: status})
 						mu.Unlock()
@@ -121,6 +127,12 @@ func main() {
 				}
 			}
 			hostname = cmd.Hostname
+			proxyHTTPS = false
+			if err := ensureStateDir(cmd.StateDir); err != nil {
+				writeResponse(enc, response{Ok: false, Error: "could not prepare Tailscale state directory", ErrorCode: "connection_failed"})
+				mu.Unlock()
+				continue
+			}
 			srv = &tsnet.Server{Hostname: cmd.Hostname, AuthKey: cmd.AuthKey, Dir: cmd.StateDir}
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			st, err := srv.Up(ctx)
@@ -148,9 +160,9 @@ func main() {
 				dns = st.Self.DNSName
 			}
 			proxyState = "stopped"
-			writeResponse(enc, response{Ok: true, Status: map[string]any{"state": st.BackendState, "hostname": hostname, "tailscale_ips": ips, "dns_name": dns, "proxy_state": proxyState, "listen_port": listenPort}})
+			writeResponse(enc, response{Ok: true, Status: map[string]any{"state": st.BackendState, "hostname": hostname, "tailscale_ips": ips, "dns_name": dns, "proxy_state": proxyState, "listen_port": listenPort, "proxy_https": proxyHTTPS}})
 		case "status":
-			status, err := statusMap(srv, hostname, proxyState, listenPort)
+			status, err := statusMap(srv, hostname, proxyState, listenPort, proxyHTTPS)
 			if err != nil {
 				writeResponse(enc, response{Ok: false, Error: "unable to read Tailscale status", ErrorCode: "protocol_error"})
 			} else {
@@ -163,7 +175,7 @@ func main() {
 				continue
 			}
 			if proxyState == "running" {
-				status, _ := statusMap(srv, hostname, proxyState, listenPort)
+				status, _ := statusMap(srv, hostname, proxyState, listenPort, proxyHTTPS)
 				writeResponse(enc, response{Ok: true, Status: status})
 				mu.Unlock()
 				continue
@@ -194,7 +206,12 @@ func main() {
 				continue
 			}
 			probe.Close()
-			listener, err := srv.Listen("tcp", fmt.Sprintf(":%d", cmd.ListenPort))
+			var listener net.Listener
+			if cmd.HTTPS {
+				listener, err = srv.ListenTLS("tcp", fmt.Sprintf(":%d", cmd.ListenPort))
+			} else {
+				listener, err = srv.Listen("tcp", fmt.Sprintf(":%d", cmd.ListenPort))
+			}
 			if err == nil {
 				addr := listener.Addr().String()
 				_, port, _ := net.SplitHostPort(addr)
@@ -211,20 +228,23 @@ func main() {
 			proxy := httputil.NewSingleHostReverseProxy(target)
 			proxyServer = &http.Server{Handler: proxy, ReadHeaderTimeout: 5 * time.Second}
 			listenPort = cmd.ListenPort
+			proxyHTTPS = cmd.HTTPS
 			proxyState = "running"
 			go func(s *http.Server, ln net.Listener) { _ = s.Serve(ln) }(proxyServer, proxyListener)
-			status, _ := statusMap(srv, hostname, proxyState, listenPort)
+			status, _ := statusMap(srv, hostname, proxyState, listenPort, proxyHTTPS)
 			writeResponse(enc, response{Ok: true, Status: status})
 		case "proxy_stop":
 			if proxyServer != nil || proxyListener != nil {
 				stopProxy(&proxyListener, &proxyServer)
 			}
 			proxyState = "stopped"
-			status, _ := statusMap(srv, hostname, proxyState, listenPort)
+			proxyHTTPS = false
+			status, _ := statusMap(srv, hostname, proxyState, listenPort, proxyHTTPS)
 			writeResponse(enc, response{Ok: true, Status: status})
 		case "disconnect":
 			stopProxy(&proxyListener, &proxyServer)
 			proxyState = "stopped"
+			proxyHTTPS = false
 			if srv != nil {
 				if err := srv.Close(); err != nil {
 					writeResponse(enc, response{Ok: false, Error: "Tailscale disconnect failed", ErrorCode: "disconnect_failed"})
@@ -235,7 +255,7 @@ func main() {
 			srv = nil
 			hostname = ""
 			listenPort = 0
-			writeResponse(enc, response{Ok: true, Status: map[string]any{"state": "disconnected", "hostname": "", "tailscale_ips": []string{}, "dns_name": "", "proxy_state": "stopped", "listen_port": 0}})
+			writeResponse(enc, response{Ok: true, Status: map[string]any{"state": "disconnected", "hostname": "", "tailscale_ips": []string{}, "dns_name": "", "proxy_state": "stopped", "listen_port": 0, "proxy_https": false}})
 		default:
 			writeResponse(enc, response{Ok: false, Error: "unknown command", ErrorCode: "unknown_command"})
 		}

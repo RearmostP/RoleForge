@@ -99,12 +99,13 @@ connect.settings {
 }
 
 proxy.settings {
+  https = true
   target = "http://127.0.0.1:8000"
-  listen_port = 8080
+  listen_port = 443
 }
 ```
 
-`env_file` אופציונלי. נתיבים יחסיים נפתרים ביחס ל־`role.source.path.parent`. המפתחות בקובץ `.env` הם `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, `TAILSCALE_STATE_DIR`, `TAILSCALE_PROXY_TARGET` ו־`TAILSCALE_PROXY_LISTEN_PORT`; ערך `.env` דורס רק את השדה התואם ב־`.rfg`, ומשתני סביבה אחרים אינם נקראים. שמרו מפתחות אמיתיים ב־`.env`, הוסיפו אותו ל־`.gitignore`, ולעולם אל תכללו או תדפיסו אותו בלוגים.
+`env_file` אופציונלי. נתיבים יחסיים נפתרים ביחס ל־`role.source.path.parent`. המפתחות בקובץ `.env` הם `TAILSCALE_HOSTNAME`, `TAILSCALE_AUTH_KEY`, `TAILSCALE_STATE_DIR`, `TAILSCALE_PROXY_TARGET`, `TAILSCALE_PROXY_LISTEN_PORT` ו־`TAILSCALE_PROXY_HTTPS`; ערך `.env` דורס רק את השדה התואם ב־`.rfg`, ומשתני סביבה אחרים אינם נקראים. שמרו מפתחות אמיתיים ב־`.env`, הוסיפו אותו ל־`.gitignore`, ולעולם אל תכללו או תדפיסו אותו בלוגים.
 
 ```python
 from roleforge import load
@@ -119,7 +120,7 @@ tailscale.proxy.stop()
 tailscale.disconnect()
 ```
 
-`connect()` מתחבר וממתין לצומת tsnet מוכן; הוא אינו מפעיל את ה־proxy. `proxy.start()` דורש צומת מחובר ומעביר בקשות מרשת Tailscale לשירות המקומי המוגדר; `proxy.stop()` עוצר את ההעברה אך משאיר את הצומת מחובר. שירות הגלריה המקומי חייב לפעול. `status()` מדווח בנפרד על `state` ו־`proxy_state`.
+`connect()` מתחבר וממתין לצומת tsnet מוכן; הוא אינו מפעיל את ה־proxy. `proxy.start()` דורש צומת מחובר ומעביר בקשות מרשת Tailscale לשירות המקומי המוגדר; `proxy.stop()` עוצר את ההעברה אך משאיר את הצומת מחובר. עם `https = true`, ה־Role משתמש ב־`tsnet.Server.ListenTLS`; יש להפעיל תעודות HTTPS ל־Tailnet בהגדרות Tailscale ולהשתמש בשם `.ts.net` של הצומת בפורט 443. כך נשמר Secure Context עבור Web Crypto בדפדפן. שירות הגלריה המקומי חייב לפעול. `status()` מדווח בנפרד על `state`, `proxy_state`, `listen_port` ו־`proxy_https`.
 
 ה־helper המוקדם כולל בינארים ל־Windows amd64, Linux amd64 ו־Linux arm64. Role זה מטמיע צומת עם זהות רשת נפרדת באמצעות `tsnet`; הוא אינו משנה את שם המחשב או מסדר מחדש את צומת Tailscale ברמת המערכת, ואינו דורש שירות `tailscaled` או CLI נפרד. ה־proxy מעביר בקשות מ־tailnet לשירות מקומי ואינו מפרסם את השירות באינטרנט הציבורי.
 
